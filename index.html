@@ -830,7 +830,37 @@ function initSync() {
     banner.className = 'sync-banner local';
 
     db.collection('khuphoTanBinh').doc('entries').onSnapshot(doc => {
-      cloudEntries = doc.exists ? (doc.data() || {}) : {};
+      const incoming = doc.exists ? (doc.data() || {}) : {};
+      const incomingEmpty = Object.keys(incoming).length === 0;
+
+      // Safety net: first connection ever, server has nothing yet, but this device
+      // already has data typed in before sync was turned on — offer to migrate it
+      // up instead of silently overwriting it with the server's empty data.
+      if (!cloudReady && incomingEmpty) {
+        const localData = loadAllLocal();
+        const hasLocalData = Object.keys(localData).some(kp => {
+          const d = localData[kp];
+          return d && Object.values(d).some(v => v && String(v).trim());
+        });
+        if (hasLocalData) {
+          const proceed = confirm(
+            'Phát hiện dữ liệu đã nhập trước đó trên máy này nhưng CHƯA được đồng bộ lên máy chủ.\n\n' +
+            'Bấm OK để đưa dữ liệu này lên máy chủ (mọi máy sẽ thấy dữ liệu này).\n' +
+            'Bấm Huỷ để bỏ qua — dữ liệu trên máy này sẽ bị thay bằng dữ liệu trống từ máy chủ.'
+          );
+          if (proceed) {
+            cloudReady = true;
+            saveAll(localData);
+            banner.textContent = '✅ Đã đưa dữ liệu cũ lên đồng bộ cho mọi máy';
+            banner.className = 'sync-banner online';
+            refreshDots();
+            showToast('Đã đồng bộ dữ liệu cũ trên máy này lên máy chủ');
+            return;
+          }
+        }
+      }
+
+      cloudEntries = incoming;
       saveAllLocal(cloudEntries);
       cloudReady = true;
       banner.textContent = '✅ Đã đồng bộ — mọi máy đang thấy cùng 1 dữ liệu';
@@ -846,8 +876,19 @@ function initSync() {
       banner.className = 'sync-banner offline';
     });
 
+    let posSynced = false;
     db.collection('khuphoTanBinh').doc('markerPositions').onSnapshot(doc => {
-      cloudPositions = doc.exists ? (doc.data() || {}) : {};
+      const incoming = doc.exists ? (doc.data() || {}) : {};
+      if (!posSynced && Object.keys(incoming).length === 0) {
+        const localPos = loadPosLocal();
+        if (Object.keys(localPos).length > 0) {
+          posSynced = true;
+          savePos(localPos); // push existing local marker positions up instead of losing them
+          return;
+        }
+      }
+      posSynced = true;
+      cloudPositions = incoming;
       savePosLocal(cloudPositions);
       if (!adjustMode) buildSvg();
     }, err => console.error(err));
