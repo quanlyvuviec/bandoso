@@ -123,13 +123,16 @@
   @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-5px);} 75%{transform:translateX(5px);} }
   .lock-err-msg { color:#dc2626; font-size:12px; text-align:center; min-height:16px; margin-bottom:6px; }
 
-  /* Sync status banner */
-  .sync-banner {
-    font-size:11.5px; text-align:center; padding:6px 14px; border-bottom:1px solid var(--border);
+  /* Compact sync status icon (replaces the old full-width sync banner) */
+  .sync-icon {
+    width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:14px; cursor:default; box-sizing:border-box; flex-shrink:0;
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.28);
+    transition: background .2s ease, border-color .2s ease;
   }
-  .sync-banner.local { background:#fff8e1; color:#7a5b00; }
-  .sync-banner.online { background:#e7f9ee; color:#15803d; }
-  .sync-banner.offline { background:#fee2e2; color:#b91c1c; }
+  .sync-icon.local { background:rgba(255,193,7,.22); border-color:rgba(255,193,7,.55); }
+  .sync-icon.online { background:rgba(34,197,94,.22); border-color:rgba(34,197,94,.55); }
+  .sync-icon.offline { background:rgba(239,68,68,.25); border-color:rgba(239,68,68,.6); }
 
   /* Marquee running-text bar (embedded inside header) */
   .marquee-bar {
@@ -362,6 +365,7 @@
   </div>
   <div class="hactions">
     <div class="stats" id="statsBox">0 / 32 khu phố</div>
+    <div class="sync-icon" id="syncIcon" title="Đang kiểm tra đồng bộ...">📴</div>
     <button id="btnList" class="header-btn">📋 Danh sách</button>
     <button id="btnConfig" class="header-btn">⚙️ Cấu hình</button>
   </div>
@@ -371,7 +375,6 @@
   Đang ở chế độ chỉnh vị trí — kéo các chấm để đặt đúng vào từng khu vực, vị trí sẽ tự lưu khi thả tay.
   <button type="button" id="btnAdjustDone" style="margin-left:8px; padding:4px 10px; border-radius:6px; border:1px solid #f5d98a; background:#fff; cursor:pointer; font-size:12px; font-weight:600;">✅ Xong</button>
 </div>
-<div class="sync-banner local" id="syncBanner">📴 Dữ liệu đang lưu trên máy này (chưa đồng bộ nhiều máy) — xem hướng dẫn bật đồng bộ ở cuối tin nhắn</div>
 
 <main>
   <div class="map-panel">
@@ -1030,19 +1033,24 @@ function pushStyleToCloud(s) {
   }
 }
 
+function setSyncIcon(icon, cls, tooltip) {
+  const el = document.getElementById('syncIcon');
+  if (!el) return;
+  el.textContent = icon;
+  el.className = 'sync-icon ' + cls;
+  el.title = tooltip;
+}
+
 function initSync() {
-  const banner = document.getElementById('syncBanner');
   if (!SYNC_ENABLED) {
-    banner.textContent = '📴 Dữ liệu đang lưu trên máy này (chưa đồng bộ nhiều máy) — xem hướng dẫn bật đồng bộ ở cuối tin nhắn';
-    banner.className = 'sync-banner local';
+    setSyncIcon('📴', 'local', 'Dữ liệu đang lưu trên máy này (chưa đồng bộ nhiều máy)');
     return;
   }
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.firestore();
     db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
-    banner.textContent = '🔄 Đang kết nối đồng bộ dữ liệu...';
-    banner.className = 'sync-banner local';
+    setSyncIcon('🔄', 'local', 'Đang kết nối đồng bộ dữ liệu...');
 
     db.collection('khuphoTanBinh').doc('entries').onSnapshot(doc => {
       const incoming = doc.exists ? (doc.data() || {}) : {};
@@ -1066,8 +1074,7 @@ function initSync() {
           if (proceed) {
             cloudReady = true;
             saveAll(localData);
-            banner.textContent = '✅ Đã đưa dữ liệu cũ lên đồng bộ cho mọi máy';
-            banner.className = 'sync-banner online';
+            setSyncIcon('✅', 'online', 'Đã đưa dữ liệu cũ lên đồng bộ cho mọi máy');
             refreshDots();
             showToast('Đã đồng bộ dữ liệu cũ trên máy này lên máy chủ');
             return;
@@ -1078,8 +1085,7 @@ function initSync() {
       cloudEntries = incoming;
       saveAllLocal(cloudEntries);
       cloudReady = true;
-      banner.textContent = '✅ Đã đồng bộ — mọi máy đang thấy cùng 1 dữ liệu';
-      banner.className = 'sync-banner online';
+      setSyncIcon('✅', 'online', 'Đã đồng bộ — mọi máy đang thấy cùng 1 dữ liệu');
       refreshDots();
       if (currentKP && document.getElementById('viewMode').style.display !== 'none') {
         refreshModalHeader(currentKP); fillView(currentKP);
@@ -1087,8 +1093,7 @@ function initSync() {
       if (listOverlayIsOpen()) renderTable(document.getElementById('searchBox').value.trim());
     }, err => {
       console.error(err);
-      banner.textContent = '⚠️ Mất kết nối đồng bộ — đang dùng dữ liệu lưu tạm trên máy này';
-      banner.className = 'sync-banner offline';
+      setSyncIcon('⚠️', 'offline', 'Mất kết nối đồng bộ — đang dùng dữ liệu lưu tạm trên máy này');
     });
 
     let posSynced = false;
@@ -1145,8 +1150,7 @@ function initSync() {
     }, err => console.error(err));
   } catch (err) {
     console.error(err);
-    banner.textContent = '⚠️ Lỗi cấu hình đồng bộ — đang dùng dữ liệu lưu trên máy này';
-    banner.className = 'sync-banner offline';
+    setSyncIcon('⚠️', 'offline', 'Lỗi cấu hình đồng bộ — đang dùng dữ liệu lưu trên máy này');
   }
 }
 function listOverlayIsOpen() {
