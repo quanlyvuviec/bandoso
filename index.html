@@ -30,6 +30,7 @@
     --c-cskv:#e7f9ee;      --c-cskv-b:#9fe0b8;      --c-cskv-t:#15803d;
     --c-pctp:#fff3e0;      --c-pctp-b:#f6c98a;      --c-pctp-t:#c2610a;
     --c-cstt:#f2ebfc;      --c-cstt-b:#cbb2ef;      --c-cstt-t:#6d28d9;
+    --c-stats:#eef2ff;     --c-stats-b:#b7c2f0;     --c-stats-t:#3730a3;
     --c-captruc:#fdecec;   --c-captruc-b:#f3aaaa;   --c-captruc-t:#b91c1c;
   }
   * { box-sizing: border-box; }
@@ -69,7 +70,7 @@
     position:relative; width:100%; overflow:hidden; border-radius:6px; background:#c7d0e3;
     touch-action:none;
   }
-  .map-zoom { transform-origin:0 0; will-change:transform; }
+  #mapZoom { transform-origin:0 0; will-change:transform; backface-visibility:hidden; }
   .map-wrap { position:relative; width:100%; user-select:none; }
   .map-wrap img {
     width:100%; display:block; -webkit-user-drag:none; pointer-events:none;
@@ -161,7 +162,7 @@
   .marker circle.dot { stroke:#fff; stroke-width:0.3; vector-effect: non-scaling-stroke; }
   .marker text {
     font-size:2.6px; font-weight:700; fill:#1f2937; text-anchor:middle; dominant-baseline:central;
-    pointer-events:none;
+    pointer-events:none; text-rendering:optimizeLegibility; shape-rendering:geometricPrecision;
   }
   .adjust-mode .marker { cursor:grab; }
   .adjust-mode .marker.dragging { cursor:grabbing; }
@@ -237,6 +238,21 @@
   .info-block.pctp .ib-title { color:var(--c-pctp-t); }
   .info-block.cstt { background:var(--c-cstt); border-color:var(--c-cstt-b); }
   .info-block.cstt .ib-title { color:var(--c-cstt-t); }
+  .info-block.stats-table { background:var(--c-stats); border-color:var(--c-stats-b); }
+  .info-block.stats-table .ib-title { color:var(--c-stats-t); }
+  .stats-hint { font-size:11px; color:#4338ca; margin:-2px 0 8px; line-height:1.5; }
+  table.stats-tbl { width:100%; border-collapse:collapse; font-size:12.5px; background:#fff; border-radius:8px; overflow:hidden; }
+  table.stats-tbl th, table.stats-tbl td { border:1px solid var(--c-stats-b); padding:6px 8px; text-align:center; }
+  table.stats-tbl thead th { background:var(--c-stats-t); color:#fff; font-weight:700; font-size:11.5px; }
+  table.stats-tbl tbody td:first-child { text-align:left; font-weight:600; color:#334155; }
+  table.stats-tbl tbody td.indent { font-weight:400; padding-left:18px; color:#475569; }
+  table.stats-tbl tr.row-bold td { font-weight:700; background:#f5f6ff; }
+  table.stats-tbl tr.row-bold td:first-child { color:var(--c-stats-t); }
+  input.stat-input { width:64px; padding:5px 6px; text-align:center; margin-top:0; }
+  .pct-badge {
+    display:inline-block; font-size:10px; font-weight:700; color:#3730a3; background:#e0e7ff;
+    border-radius:6px; padding:1px 5px; margin-left:3px; vertical-align:middle;
+  }
   .info-block.captruc { background:var(--c-captruc); border-color:var(--c-captruc-b); }
   .info-block.captruc .captruc-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; }
   .info-block.captruc .ib-title { color:var(--c-captruc-t); display:flex; align-items:center; gap:6px; margin:0; }
@@ -298,6 +314,7 @@
   table.kp-table thead th.th-cskv { background:var(--c-cskv-t); }
   table.kp-table thead th.th-pctp { background:var(--c-pctp-t); }
   table.kp-table thead th.th-cstt { background:var(--c-cstt-t); }
+  table.kp-table thead th.th-stats { background:var(--c-stats-t); }
   table.kp-table thead th.th-act { background:var(--primary-dark); width:60px; }
   table.kp-table td { padding:10px 12px; border-bottom:1px solid #eef1f7; vertical-align:top; }
   table.kp-table tbody tr:nth-child(even) td { background:#fafbff; }
@@ -308,9 +325,169 @@
   table.kp-table .person .nm { font-weight:600; }
   table.kp-table .person .ph { color:#1d4ed8; margin-top:1px; }
   table.kp-table .empty-cell { color:var(--empty); font-style:italic; font-size:12px; }
+  table.kp-table .statcell { font-size:12px; color:#3730a3; font-weight:600; white-space:nowrap; }
+
+  /* ---- Trang Đối tượng ---- */
+  .subj-tabs { display:flex; gap:8px; padding:14px 24px 0; }
+  .subj-tab { padding:10px 18px; border:1.5px solid #dde3f0; background:#f8fafd; border-radius:10px 10px 0 0; font-size:13px; font-weight:700; color:#64748b; cursor:pointer; border-bottom:none; }
+  .subj-tab.active { background:#fff; color:#1a3a6e; border-color:#c7d2f5; }
+  .subj-pane { display:none; flex-direction:column; flex:1; min-height:0; overflow:hidden; }
+  .subj-pane.show { display:flex; }
+  .subj-form-card { margin:16px 24px; padding:18px 20px; background:#f8fafd; border:1.5px solid #dde3f0; border-radius:12px; }
+  /* --- Thanh mở form "Nhập vụ việc mới" (form ẩn mặc định để danh sách rộng hơn) --- */
+  .newform-bar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:14px 24px 0; }
+  .newform-bar button.primary {
+    background:linear-gradient(135deg,#1a7f4b,#0f5c34); color:#fff; border:1.5px solid #0f5c34;
+    border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:700; cursor:pointer;
+  }
+  .newform-bar button.primary:hover { filter:brightness(1.08); }
+  .newform-hint { font-size:12px; color:var(--muted); }
+  .newform-head {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin:-4px 0 12px; padding-bottom:10px; border-bottom:1.5px dashed #cbd5e1;
+    font-size:14px; font-weight:800; color:#0f5c34;
+  }
+  .newform-head .linkbtn { border:none; background:#fee2e2; color:#b91c1c; border-radius:8px; padding:6px 12px; font-size:12px; font-weight:700; cursor:pointer; }
+  /* ===== MÀN HÌNH ĐĂNG NHẬP (che toàn bộ ứng dụng cho tới khi xác thực thành công) ===== */
+  .auth-gate {
+    position:fixed; inset:0; z-index:9999; display:none;
+    align-items:center; justify-content:center; padding:18px;
+    background:linear-gradient(135deg,#0b3d91,#061f4a);
+  }
+  .auth-gate.show { display:flex; }
+  .auth-card {
+    background:#fff; border-radius:16px; width:100%; max-width:390px; padding:26px 24px 20px;
+    box-shadow:0 18px 50px rgba(0,0,0,.35); text-align:center;
+  }
+  .auth-logo { font-size:40px; line-height:1; margin-bottom:6px; }
+  .auth-card h2 { margin:0; font-size:19px; color:var(--primary-dark); }
+  .auth-sub { margin:4px 0 18px; font-size:12.5px; color:var(--muted); }
+  .auth-field { text-align:left; margin-bottom:12px; }
+  .auth-field label { display:block; font-size:12.5px; font-weight:700; color:#374151; margin-bottom:5px; }
+  .auth-field input {
+    width:100%; box-sizing:border-box; padding:11px 12px; font-size:15px;
+    border:1.5px solid var(--border); border-radius:9px;
+  }
+  .auth-field input:focus { outline:none; border-color:#8ea8e8; }
+  .auth-err { min-height:18px; font-size:12.5px; color:#dc2626; margin-bottom:6px; font-weight:600; }
+  .auth-btn {
+    width:100%; padding:12px; border:none; border-radius:10px; cursor:pointer;
+    background:linear-gradient(135deg,#1a7f4b,#0f5c34); color:#fff; font-size:15px; font-weight:700;
+  }
+  .auth-btn:disabled { opacity:.6; cursor:progress; }
+  .auth-note { margin-top:14px; font-size:11.5px; color:var(--muted); line-height:1.5; }
+  .auth-diag {
+    min-height:14px; font-size:11px; color:#64748b; margin:-2px 0 8px;
+    font-family:Consolas,monospace; word-break:break-all;
+  }
+  .user-chip {
+    display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:#fff;
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.28);
+    border-radius:8px; padding:5px 9px; white-space:nowrap;
+  }
+  .user-chip .role { font-weight:800; letter-spacing:.02em; }
+  .dateinp { letter-spacing:.4px; }
+  .filter-sel {
+    padding:9px 10px; border:1.5px solid var(--border); border-radius:9px; font-size:12.5px;
+    background:#fff; color:#334155; font-weight:600; cursor:pointer; max-width:220px;
+  }
+  .filter-sel:focus { outline:none; border-color:#8ea8e8; }
+  .list-footer button.warn { background:#fff7ed; color:#b45309; border-color:#fed7aa; font-weight:700; }
+  .subj-summary .sm-he { display:inline-block; margin-left:10px; font-weight:600; opacity:.9; }
+  .subj-summary .sm-warn { color:#b45309; font-weight:800; }
+  tr.row-sotlot td { background:#fffbeb !important; }
+  tr.row-novu td { background:#f8fafc !important; color:#64748b; font-style:italic; }
+  .badge-sl { display:inline-block; background:#fef3c7; color:#92400e; border:1px solid #fcd34d; border-radius:6px; padding:2px 7px; font-size:11px; font-weight:700; }
+  .badge-ok { display:inline-block; background:#dcfce7; color:#166534; border:1px solid #86efac; border-radius:6px; padding:2px 7px; font-size:11px; font-weight:700; }
+  .badge-dvk { display:inline-block; background:#e0e7ff; color:#3730a3; border:1px solid #a5b4fc; border-radius:6px; padding:2px 7px; font-size:11px; font-weight:700; }
+  .badge-none { display:inline-block; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; border-radius:6px; padding:2px 7px; font-size:11px; font-weight:600; }
+  .subj-form-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px 14px; }
+  .subj-form-grid .span2 { grid-column:span 2; }
+  .subj-form-grid label.sub, .subj-xuly label.sub { display:block; font-size:11.5px; color:#64748b; font-weight:700; margin-bottom:4px; }
+  .subj-form-grid input, .subj-form-grid select { width:100%; box-sizing:border-box; padding:9px 10px; border:1.5px solid #dde3f0; border-radius:8px; font-size:13px; background:#fff; }
+  .subj-xuly { margin-top:14px; padding-top:14px; border-top:1px dashed #dde3f0; }
+  .subj-vuviec { margin-top:14px; padding:12px 14px; background:#fff7ed; border:1.5px solid #fcd9a8; border-radius:10px; }
+  .subj-vuviec > label.sub { color:#9a3412; margin-bottom:8px; }
+  .subj-vuviec .subj-form-grid { grid-template-columns:repeat(4,1fr); gap:10px 12px; }
+  .subj-vuviec .xuly-note { color:#9a3412; margin-top:8px; }
+  table.staged-subj-table { width:100%; border-collapse:separate; border-spacing:0; font-size:12.5px; background:#fff; border-radius:8px; overflow:hidden; border:1px solid #c7d2fe; }
+  table.staged-subj-table th { background:linear-gradient(180deg,#4338ca,#312e81); color:#fff; text-align:center; padding:9px 10px; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; border-right:1px solid rgba(255,255,255,.25); }
+  table.staged-subj-table th:last-child { border-right:none; }
+  table.staged-subj-table td { padding:8px 10px; text-align:center; vertical-align:middle; border-bottom:1px solid #e5e9f5; border-right:1px solid #eef1f8; }
+  table.staged-subj-table td:last-child { border-right:none; }
+  table.staged-subj-table tbody tr:nth-child(even) td { background:#f8faff; }
+  table.staged-subj-table .empty-cell { color:var(--empty); font-style:italic; font-size:12px; }
+  table.staged-subj-table .rowbtn.danger { border:none; background:#dc2626; color:#fff; border-radius:6px; padding:5px 9px; font-size:11px; cursor:pointer; }
+  .subj-summary { margin:0 24px 12px; padding:10px 16px; background:linear-gradient(135deg,#eef2ff,#e0e7ff); border:1.5px solid #c7d2fe; border-radius:10px; font-size:13.5px; font-weight:700; color:#3730a3; text-align:center; }
+  .xuly-opts { display:flex; gap:18px; flex-wrap:wrap; margin-top:4px; }
+  .xuly-opts label { display:flex; align-items:center; gap:6px; font-size:13px; color:#334155; cursor:pointer; }
+  .xuly-note { font-size:12px; color:#b45309; min-height:16px; margin-top:2px; }
+  .xuly-note.matched { color:#166534; }
+  #nf_donvibat { width:100%; box-sizing:border-box; padding:9px 10px; border:1.5px solid #dde3f0; border-radius:8px; font-size:13px; }
+  .subj-form-actions { margin-top:16px; display:flex; gap:10px; }
+  @media (max-width:900px){ .subj-form-grid{ grid-template-columns:repeat(2,1fr); } .subj-form-grid .span2{ grid-column:span 2; } }
+  .heat-toggle-group { display:flex; align-items:center; gap:8px; background:#f1f5f9; border-radius:10px; padding:6px 10px; flex-wrap:wrap; }
+  .heat-switch { display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700; color:#334155; cursor:pointer; user-select:none; }
+  .heat-switch input[type=checkbox] { width:34px; height:19px; appearance:none; background:#cbd5e1; border-radius:20px; position:relative; cursor:pointer; outline:none; transition:background .15s; flex-shrink:0; }
+  .heat-switch input[type=checkbox]::before { content:''; position:absolute; top:2px; left:2px; width:15px; height:15px; background:#fff; border-radius:50%; transition:transform .15s; box-shadow:0 1px 2px rgba(0,0,0,.3); }
+  .heat-switch input[type=checkbox]:checked { background:linear-gradient(135deg,#dc2626,#f59e0b); }
+  .heat-switch input[type=checkbox]:checked::before { transform:translateX(15px); }
+  .heat-select { border:1.5px solid #dde3f0; background:#fff; color:#1a3a6e; font-size:12px; font-weight:600; padding:6px 8px; border-radius:8px; cursor:pointer; }
+  .heat-select:disabled { color:#94a3b8; cursor:default; background:#f8fafc; }
+  @media (max-width:900px){ .heat-toggle-group{ order:99; width:100%; } }
+  .pagi-bar { display:flex; align-items:center; justify-content:center; gap:6px; padding:12px; flex-wrap:wrap; border-top:1px solid var(--border); }
+  .pagi-bar button { border:1.5px solid #dde3f0; background:#fff; color:#334155; padding:6px 11px; border-radius:7px; font-size:12.5px; font-weight:600; cursor:pointer; }
+  .pagi-bar button.active { background:#1a3a6e; color:#fff; border-color:#1a3a6e; }
+  .pagi-bar button:disabled { opacity:.4; cursor:default; }
+  /* ---- Bảng riêng cho "Đối tượng" (không dùng chung .kp-table để tránh lỗi chữ tiêu đề
+     trùng màu nền và cơ chế thu gọn thành thẻ trên di động vốn cần data-label) ---- */
+  .subj-table-wrap {
+    overflow-x:auto; overflow-y:visible; -webkit-overflow-scrolling:touch;
+    border:1.5px solid #c3d0e8; border-radius:10px; background:#fff;
+    box-shadow:0 1px 4px rgba(15,23,42,.06);
+  }
+  table.subj-table {
+    width:100%; min-width:1060px; border-collapse:separate; border-spacing:0; font-size:12.5px;
+  }
+  /* --- TIÊU ĐỀ: canh giữa, nền gradient đậm, có vạch chia cột rõ --- */
+  table.subj-table thead th {
+    position:sticky; top:0; z-index:2;
+    background:linear-gradient(180deg,#24559c,#173a70); color:#fff;
+    text-align:center; vertical-align:middle; padding:11px 10px;
+    font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em;
+    white-space:normal; line-height:1.35;
+    border-right:1px solid rgba(255,255,255,.28);
+    border-bottom:2px solid #0f2a54;
+  }
+  table.subj-table thead th:last-child { border-right:none; }
+  /* --- Ô dữ liệu: canh giữa cả ngang lẫn dọc, kẻ ô đầy đủ --- */
+  table.subj-table td {
+    padding:9px 10px; text-align:center; vertical-align:middle;
+    border-bottom:1px solid #dbe3f2; border-right:1px solid #e8edf7;
+    white-space:normal; word-break:break-word; max-width:250px; line-height:1.45;
+  }
+  table.subj-table td:last-child { border-right:none; }
+  table.subj-table tbody tr:nth-child(even) td { background:#f6f9ff; }
+  table.subj-table tbody tr:hover td { background:#e6effd; }
+  table.subj-table tbody tr:last-child td { border-bottom:none; }
+  table.subj-table td.nowrap { white-space:nowrap; }
+  table.subj-table td.actioncell { white-space:nowrap; }
+  /* Ô GỘP của 1 vụ việc (STT / Tên vụ / Ngày / Nơi xảy ra / Khu phố xảy ra) */
+  table.subj-table td.vu-cell {
+    background:#eef4ff !important; font-weight:600; color:#12315f;
+    border-right:2px solid #b9cbec; border-bottom:2px solid #b9cbec;
+  }
+  table.subj-table td.vu-stt { font-size:15px; font-weight:800; color:#1d4ed8; }
+  table.subj-table tbody tr.vu-first td { border-top:2px solid #b9cbec; }
+  table.subj-table .rowbtn { border:none; border-radius:7px; padding:6px 10px; font-size:11.5px; font-weight:700; cursor:pointer; color:#fff; margin:2px 3px; }
+  table.subj-table .rowbtn.edit { background:#2563eb; }
+  table.subj-table .rowbtn.danger { background:#dc2626; }
+  table.subj-table .empty-cell { color:var(--empty); font-style:italic; font-size:12px; text-align:center; }
+  @media (max-width:900px){ table.subj-table { font-size:11.5px; } table.subj-table td { padding:7px 8px; } }
   table.kp-table .rowbtn {
     border:none; background:var(--primary); color:#fff; border-radius:7px; padding:7px 10px; font-size:11.5px; cursor:pointer; font-weight:600;
   }
+  table.kp-table .rowbtn.danger { background:#dc2626; }
   .list-footer {
     display:flex; gap:8px; padding:12px 18px; border-top:1px solid var(--border); background:#fff;
     flex-wrap:wrap; position:sticky; bottom:0;
@@ -355,6 +532,25 @@
 </head>
 <body>
 
+<!-- ===== CỔNG ĐĂNG NHẬP: che toàn bộ ứng dụng cho tới khi xác thực thành công ===== -->
+<div class="auth-gate" id="authGate">
+  <div class="auth-card">
+    <div class="auth-logo">🛡️</div>
+    <h2>Bản đồ số khu phố</h2>
+    <div class="auth-sub">Công an phường Tân Bình — Hệ thống nội bộ</div>
+    <div class="auth-field"><label>Tài khoản (email)</label><input type="email" id="authEmail" autocomplete="username" placeholder="hoten@congan-tanbinh.vn"></div>
+    <div class="auth-field"><label>Mật khẩu</label><input type="password" id="authPass" autocomplete="current-password" placeholder="••••••••"></div>
+    <div class="auth-err" id="authErr"></div>
+    <div class="auth-diag" id="authDiag"></div>
+    <button class="auth-btn" id="authLogin">Đăng nhập</button>
+    <div class="auth-note">
+      Tài khoản do quản trị viên cấp — hệ thống KHÔNG cho tự đăng ký.<br>
+      Dữ liệu trong hệ thống là thông tin nghiệp vụ, nghiêm cấm chia sẻ tài khoản
+      hoặc truy cập từ thiết bị không được phê duyệt. Mọi thao tác đều được ghi nhật ký.
+    </div>
+  </div>
+</div>
+
 <header>
   <div class="htext">
     <h1>Bản đồ Khu phố - Phường Tân Bình</h1>
@@ -367,6 +563,23 @@
     <div class="stats" id="statsBox">0 / 32 khu phố</div>
     <div class="sync-icon" id="syncIcon" title="Đang kiểm tra đồng bộ...">📴</div>
     <button id="btnList" class="header-btn">📋 Danh sách</button>
+    <button id="btnSubjects" class="header-btn">🧑‍🤝‍🧑 Đối tượng</button>
+    <div class="heat-toggle-group" id="heatToggleGroup">
+      <label class="heat-switch"><input type="checkbox" id="heatEnable"><span>🔥 Bản đồ nhiệt</span></label>
+      <select id="heatStatSelect" class="heat-select" disabled>
+        <option value="combined">Tổng hợp (vụ + đối tượng)</option>
+        <option value="vu">📋 Số vụ việc</option>
+        <option value="dt">🧑 Số đối tượng</option>
+      </select>
+      <select id="heatHeSelect" class="heat-select" disabled>
+        <option value="total">Cả 3 hệ</option>
+        <option value="hs">🔴 Hình sự</option>
+        <option value="ktmt">🟠 Kinh tế - MT</option>
+        <option value="mt">🟣 Ma tuý</option>
+      </select>
+    </div>
+    <span class="user-chip" id="userChip" style="display:none;"></span>
+    <button id="btnLogout" class="header-btn" style="display:none;">🚪 Đăng xuất</button>
     <button id="btnConfig" class="header-btn">⚙️ Cấu hình</button>
   </div>
 </header>
@@ -565,16 +778,21 @@
             <div class="role-row"><span class="role-tag">KT-MT</span><div class="role-body ib-value" id="v_pctp_ktmt">—</div></div>
           </div>
         </div>
-        <div class="info-block cstt">
-          <div class="ib-title">🚦 Cảnh sát Trật tự (CSTT)</div>
-          <div class="cstt-roles">
-            <div class="role-row"><span class="role-tag">TT</span><div class="role-body ib-value" id="v_cstt_tt">—</div></div>
-            <div class="role-row"><span class="role-tag">PC</span><div class="role-body ib-value" id="v_cstt_pc">—</div></div>
-          </div>
-        </div>
-        <div class="info-block truong">
-          <div class="ib-title">👤 Trưởng khu phố</div>
-          <div class="ib-value" id="v_truong">—</div>
+        <div class="info-block stats-table">
+          <div class="ib-title">📊 Thống kê vụ việc &amp; đối tượng theo hệ</div>
+          <table class="stats-tbl" id="statsTblView">
+            <thead>
+              <tr><th></th><th>Hình sự</th><th>Kinh tế - Môi trường</th><th>Ma tuý</th></tr>
+            </thead>
+            <tbody>
+              <tr class="row-bold"><td>Tổng số vụ</td><td id="v_stat_vu_hs">0</td><td id="v_stat_vu_ktmt">0</td><td id="v_stat_vu_mt">0</td></tr>
+              <tr class="row-bold"><td>Tổng đối tượng</td><td id="v_stat_tong_hs">0</td><td id="v_stat_tong_ktmt">0</td><td id="v_stat_tong_mt">0</td></tr>
+              <tr><td class="indent">Đang quản lý</td><td id="v_stat_dql_hs">0</td><td id="v_stat_dql_ktmt">0</td><td id="v_stat_dql_mt">0</td></tr>
+              <tr><td class="indent">Sót lọt</td><td id="v_stat_sl_hs">0</td><td id="v_stat_sl_ktmt">0</td><td id="v_stat_sl_mt">0</td></tr>
+              <tr><td class="indent">Đơn vị khác bắt</td><td id="v_stat_dvk_hs">0</td><td id="v_stat_dvk_ktmt">0</td><td id="v_stat_dvk_mt">0</td></tr>
+            </tbody>
+          </table>
+          <div class="stats-hint">% bên cạnh số liệu = tỷ lệ so với tổng toàn phường (32 khu phố) của cùng hệ đó.</div>
         </div>
         <div class="modal-actions">
           <button class="btn-edit" id="btnEdit">✏️ Sửa thông tin</button>
@@ -631,29 +849,26 @@
             </div>
           </div>
         </div>
-        <div class="info-block cstt">
-          <div class="ib-title">🚦 Cảnh sát Trật tự (CSTT)</div>
-          <div class="pctp-edit-role">
-            <div class="rtitle">HỆ TRẬT TỰ (TT)</div>
-            <div class="two-col">
-              <div><label class="sub">Họ và tên</label><input type="text" id="f_cstt_tt_name" placeholder="Họ tên cán bộ"></div>
-              <div><label class="sub">Số điện thoại</label><input type="tel" id="f_cstt_tt_phone" placeholder="10 số" maxlength="10" inputmode="numeric"></div>
-            </div>
-          </div>
-          <div class="pctp-edit-role">
-            <div class="rtitle">HỆ PHÒNG CHÁY CHỮA CHÁY (PC)</div>
-            <div class="two-col">
-              <div><label class="sub">Họ và tên</label><input type="text" id="f_cstt_pc_name" placeholder="Họ tên cán bộ"></div>
-              <div><label class="sub">Số điện thoại</label><input type="tel" id="f_cstt_pc_phone" placeholder="10 số" maxlength="10" inputmode="numeric"></div>
-            </div>
-          </div>
-        </div>
-        <div class="info-block truong">
-          <div class="ib-title">👤 Trưởng khu phố</div>
-          <label class="sub">Họ và tên</label>
-          <input type="text" id="f_truong_name" placeholder="Họ tên trưởng khu phố">
-          <label class="sub">Số điện thoại</label>
-          <input type="tel" id="f_truong_phone" placeholder="10 số" maxlength="10" inputmode="numeric">
+        <div class="info-block stats-table">
+          <div class="ib-title">📊 Thống kê vụ việc &amp; đối tượng theo hệ</div>
+          <div class="stats-hint">Chỉ nhập "Tổng số vụ". Các dòng Đang quản lý / Sót lọt / Đơn vị khác bắt / Tổng đối tượng được phần mềm tự tính từ dữ liệu ở mục "Đối tượng".</div>
+          <table class="stats-tbl">
+            <thead>
+              <tr><th></th><th>Hình sự</th><th>Kinh tế - MT</th><th>Ma tuý</th></tr>
+            </thead>
+            <tbody>
+              <tr class="row-bold">
+                <td>Tổng số vụ</td>
+                <td><input type="number" min="0" id="f_stat_vu_hs" class="stat-input"></td>
+                <td><input type="number" min="0" id="f_stat_vu_ktmt" class="stat-input"></td>
+                <td><input type="number" min="0" id="f_stat_vu_mt" class="stat-input"></td>
+              </tr>
+              <tr class="row-bold"><td>Tổng đối tượng</td><td id="f_stat_tong_hs">0</td><td id="f_stat_tong_ktmt">0</td><td id="f_stat_tong_mt">0</td></tr>
+              <tr><td class="indent">Đang quản lý</td><td id="f_stat_dql_hs">0</td><td id="f_stat_dql_ktmt">0</td><td id="f_stat_dql_mt">0</td></tr>
+              <tr><td class="indent">Sót lọt</td><td id="f_stat_sl_hs">0</td><td id="f_stat_sl_ktmt">0</td><td id="f_stat_sl_mt">0</td></tr>
+              <tr><td class="indent">Đơn vị khác bắt</td><td id="f_stat_dvk_hs">0</td><td id="f_stat_dvk_ktmt">0</td><td id="f_stat_dvk_mt">0</td></tr>
+            </tbody>
+          </table>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn-cancel" id="btnCancelEdit">Huỷ</button>
@@ -689,8 +904,7 @@
             <th class="th-kp">Khu phố</th>
             <th class="th-cskv">CSKV</th>
             <th class="th-pctp">PCTP</th>
-            <th class="th-cstt">CSTT</th>
-            <th class="th-truong">Trưởng KP</th>
+            <th class="th-stats">Thống kê (Tổng đối tượng)</th>
             <th class="th-act"></th>
           </tr>
         </thead>
@@ -708,6 +922,220 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ================= TRANG ĐỐI TƯỢNG ================= -->
+<div class="list-overlay" id="subjectsOverlay" style="display:none;">
+  <div class="list-head">
+    <div>
+      <h2>🧑‍🤝‍🧑 Quản lý đối tượng</h2>
+      <div class="lsub">Danh sách đang quản lý &amp; nhập đối tượng mới - Phường Tân Bình</div>
+    </div>
+    <button class="modal-close" id="subjectsClose">✕</button>
+  </div>
+
+  <div class="subj-tabs">
+    <button class="subj-tab active" id="tabQL" data-tab="ql">📋 Danh sách đang quản lý</button>
+    <button class="subj-tab" id="tabNew" data-tab="new">➕ Nhập vụ việc mới</button>
+  </div>
+
+  <!-- TAB: Danh sách đang quản lý -->
+  <div class="subj-pane show" id="paneQL">
+    <div class="list-search">
+      <div class="search-box"><span class="si">🔍</span><input type="text" id="subjQLSearch" placeholder="Tìm theo họ tên, CCCD, khu phố..."></div>
+      <div class="count" id="subjQLCount">0 đối tượng</div>
+    </div>
+    <div class="list-body">
+      <div class="table-card">
+        <div class="subj-table-wrap">
+        <table class="subj-table" id="subjQLTable">
+          <thead><tr>
+            <th>Stt</th><th>Họ và tên</th><th>Ngày sinh</th><th>CCCD</th><th>Tạm trú</th><th>Diện quản lý</th><th>Hệ</th><th>Khu phố nơi ở</th><th></th>
+          </tr></thead>
+          <tbody id="subjQLBody"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+    <div class="list-footer">
+      <button id="btnSubjQLAdd" class="primary">➕ Thêm đối tượng mới</button>
+      <button id="btnSubjQLImport" class="secondary">⬆ Nhập từ Excel</button>
+      <button id="btnSubjQLTemplate" class="secondary">⬇ Tải file mẫu Excel</button>
+      <button id="btnSubjQLExport">⬇ Xuất Excel danh sách</button>
+      <button id="btnSubjQLClearAll" class="danger">🗑 Xoá toàn bộ danh sách</button>
+      <input type="file" id="subjQLFile" accept=".xlsx,.xls" style="display:none">
+    </div>
+  </div>
+
+  <!-- TAB: Nhập vụ việc mới -->
+  <div class="subj-pane" id="paneNew">
+    <div class="newform-bar">
+      <button id="btnOpenNewForm" class="primary">➕ Nhập vụ việc mới</button>
+      <span class="newform-hint">Mặc định chỉ hiện danh sách cho rộng. Bấm nút này khi cần nhập thêm vụ việc.</span>
+    </div>
+    <div class="subj-form-card" id="newFormWrap" style="display:none;">
+      <div class="newform-head">
+        <span>📝 Nhập vụ việc mới</span>
+        <button type="button" id="btnCloseNewForm" class="linkbtn">✕ Đóng form</button>
+      </div>
+      <div class="subj-vuviec" style="margin-top:0;">
+        <label class="sub">📌 Thông tin vụ việc</label>
+        <div class="subj-form-grid">
+          <div class="span2"><label class="sub">Tên vụ việc</label><input type="text" id="nf_tenvuviec" placeholder="VD: Trộm cắp tài sản, Gây rối trật tự công cộng..."></div>
+          <div><label class="sub">Ngày xảy ra vụ việc</label><input type="text" id="nf_ngayxayra" class="dateinp" placeholder="dd/mm/yyyy" inputmode="numeric"></div>
+          <div><label class="sub">Hệ *</label>
+            <select id="nf_he"><option value="hs">Hình sự</option><option value="ktmt">Kinh tế - Môi trường</option><option value="mt">Ma tuý</option></select>
+          </div>
+          <div class="span2"><label class="sub">Nơi xảy ra vụ việc</label><input type="text" id="nf_noixayra" placeholder="Địa chỉ cụ thể nơi xảy ra vụ việc (ghi rõ 'khu phố N' để phần mềm tự nhận diện)"></div>
+          <div><label class="sub">Khu phố nơi xảy ra vụ việc</label><select id="nf_khupho"><option value="">-- Ngoài địa bàn / chưa rõ --</option></select></div>
+          <div><label class="sub">Số đối tượng bị bắt trên địa bàn</label><input type="text" id="nf_socbat" value="0" readonly style="background:#f1f5f9;font-weight:700;text-align:center;"></div>
+        </div>
+        <div class="xuly-note">Khu phố tự nhận diện từ "Nơi xảy ra vụ việc" (có thể sửa tay). Nếu địa chỉ KHÔNG thuộc Phường Tân Bình, để trống ở đây — vụ việc sẽ không tính vào Tổng số vụ của bất kỳ khu phố nào trong 32 khu phố, nhưng đối tượng vẫn tính đúng theo khu phố nơi ở của họ bên dưới.</div>
+      </div>
+
+      <div class="subj-vuviec" style="background:#eef2ff;border-color:#c7d2fe;">
+        <label class="sub" style="color:#3730a3;">🧑 Danh sách đối tượng bị bắt trong vụ việc này</label>
+        <div class="subj-table-wrap">
+          <table class="staged-subj-table" id="stagedSubjTable">
+            <thead><tr><th>Họ và tên</th><th>Ngày sinh</th><th>CCCD</th><th>Khu phố ở</th><th>Đơn vị bắt</th><th></th></tr></thead>
+            <tbody id="stagedSubjBody"><tr><td colspan="6" class="empty-cell">Chưa thêm đối tượng nào — bấm "➕ Thêm đối tượng" bên dưới</td></tr></tbody>
+          </table>
+        </div>
+        <button type="button" id="btnAddSubjectToggle" class="secondary" style="margin-top:10px;">➕ Thêm đối tượng</button>
+
+        <div id="subjectEntryBox" style="display:none;margin-top:12px;padding:14px;background:#fff;border:1.5px dashed #a5b4fc;border-radius:10px;">
+          <div class="subj-form-grid">
+            <div><label class="sub">Họ và tên *</label><input type="text" id="nf_hoten" placeholder="VD: Nguyễn Văn A"></div>
+            <div><label class="sub">Ngày sinh</label><input type="text" id="nf_ngaysinh" class="dateinp" placeholder="dd/mm/yyyy hoặc chỉ năm" inputmode="numeric"></div>
+            <div><label class="sub">Số CCCD</label><input type="text" id="nf_cccd" maxlength="12" inputmode="numeric" placeholder="12 số"></div>
+            <div><label class="sub">Khu phố ở</label><select id="nf_khuphonoio"><option value="">-- Ngoài địa bàn / chưa rõ --</option></select></div>
+            <div class="span2"><label class="sub">Nơi ở trước khi bị bắt</label><input type="text" id="nf_noio" placeholder="VD: 12 Bàu Cát, Khu phố 1, Phường Tân Bình, TP.HCM"></div>
+          </div>
+          <div class="xuly-note" id="nf_dedup_note" style="color:#3730a3;"></div>
+          <label class="sub" style="margin-top:10px;">Đơn vị bắt</label>
+          <div class="xuly-opts">
+            <label><input type="radio" name="nf_donvi" value="cap" checked> CAP (Công an phường)</label>
+            <label><input type="radio" name="nf_donvi" value="khac"> Đơn vị khác</label>
+          </div>
+          <input type="text" id="nf_donvibat" placeholder="Tên đơn vị bắt..." style="display:none;margin-top:8px;width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;">
+          <div style="margin-top:12px;display:flex;gap:10px;">
+            <button type="button" id="btnConfirmAddSubject" class="primary">✅ Xác nhận thêm đối tượng này</button>
+            <button type="button" id="btnCancelAddSubject" class="secondary">Huỷ</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="subj-form-actions">
+        <button id="btnSubjNewSave" class="primary">💾 Lưu vụ việc</button>
+        <button id="btnSubjNewClear" class="secondary">Xoá form</button>
+      </div>
+    </div>
+    <div class="subj-summary" id="subjNewSummary">0 vụ việc • 0 đối tượng</div>
+    <div class="list-search">
+      <div class="search-box"><span class="si">🔍</span><input type="text" id="subjNewSearch" placeholder="Tìm theo họ tên, tên vụ việc, khu phố..."></div>
+      <select id="subjNewFilterTrangThai" class="filter-sel" title="Lọc theo trạng thái đối tượng">
+        <option value="">Trạng thái: tất cả</option>
+        <option value="sot_lot">⚠️ Chỉ SÓT LỌT</option>
+        <option value="phuong_bat">Đã có trong quản lý</option>
+        <option value="don_vi_khac">Đơn vị khác bắt</option>
+        <option value="_novu">Vụ việc chưa có đối tượng</option>
+      </select>
+      <select id="subjNewFilterHe" class="filter-sel" title="Lọc theo hệ">
+        <option value="">Hệ: tất cả</option>
+        <option value="hs">Hình sự</option>
+        <option value="mt">Ma tuý</option>
+        <option value="ktmt">Kinh tế - Môi trường</option>
+      </select>
+      <select id="subjNewFilterKp" class="filter-sel" title="Lọc theo khu phố nơi ở của đối tượng"><option value="">Khu phố ở: tất cả</option></select>
+      <div class="count" id="subjNewCount">0 dòng</div>
+    </div>
+    <div class="list-body">
+      <div class="table-card">
+        <div class="subj-table-wrap">
+        <table class="subj-table" id="subjNewTable">
+          <thead><tr>
+            <th>Stt</th><th>Tên vụ việc</th><th>Ngày xảy ra</th><th>Nơi xảy ra vụ việc</th><th>Khu phố xảy ra</th>
+            <th>Họ và tên đối tượng</th><th>Năm sinh</th><th>Số CCCD</th><th>Nơi ở trước khi bị bắt</th><th>Khu phố ở</th>
+            <th>Hệ</th><th>Đơn vị bắt</th><th>Trạng thái</th><th></th>
+          </tr></thead>
+          <tbody id="subjNewBody"></tbody>
+        </table>
+        </div>
+      </div>
+      <div class="pagi-bar" id="subjNewPagi"></div>
+    </div>
+    <div class="list-footer">
+      <button id="btnSubjNewImport" class="primary">⬆ Nhập hàng loạt từ Excel</button>
+      <button id="btnSubjNewTemplate" class="secondary">⬇ Tải file mẫu Excel</button>
+      <button id="btnSubjNewExport">⬇ Xuất Excel danh sách</button>
+      <button id="btnSubjNewExportSotLot" class="warn">⚠️ Xuất danh sách SÓT LỌT</button>
+      <button id="btnSubjNewExportView" class="secondary">⬇ Xuất đúng phần đang lọc</button>
+      <button id="btnSubjNewClearAll" class="danger">🗑 Xoá toàn bộ vụ việc</button>
+      <input type="file" id="subjNewFile" accept=".xlsx,.xls" style="display:none">
+    </div>
+  </div>
+</div>
+
+<!-- Modal sửa 1 đối tượng trong "Danh sách đang quản lý" -->
+<div class="settings-pop" id="qlEditPop">
+  <div class="settings-card" style="max-width:520px;">
+    <h3 id="qlEditTitle">✏️ Sửa đối tượng (Danh sách đang quản lý)</h3>
+    <div style="max-height:60vh;overflow-y:auto;margin:-4px -4px 12px;padding:4px;">
+      <div class="subj-form-grid">
+        <div><label class="sub">Họ và tên *</label><input type="text" id="qe_hoten"></div>
+        <div><label class="sub">Ngày sinh</label><input type="text" id="qe_ngaysinh" class="dateinp" placeholder="dd/mm/yyyy hoặc chỉ năm" inputmode="numeric"></div>
+        <div><label class="sub">Số CCCD</label><input type="text" id="qe_cccd"></div>
+        <div><label class="sub">Hệ *</label>
+          <select id="qe_he"><option value="hs">Hình sự</option><option value="ktmt">Kinh tế - Môi trường</option><option value="mt">Ma tuý</option></select>
+        </div>
+        <div class="span2"><label class="sub">Tạm trú</label><input type="text" id="qe_tamtru"></div>
+        <div><label class="sub">Diện quản lý</label><input type="text" id="qe_dienquanly"></div>
+        <div><label class="sub">Khu phố nơi ở *</label><select id="qe_khupho"></select></div>
+      </div>
+    </div>
+    <div class="settings-actions">
+      <button type="button" class="btn-def" id="qeCancel">Huỷ</button>
+      <button type="button" class="btn-ok" id="qeSave">💾 Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal sửa 1 dòng (1 đối tượng trong 1 vụ việc) trong "Nhập vụ việc mới" -->
+<div class="settings-pop" id="newEditPop">
+  <div class="settings-card" style="max-width:640px;">
+    <h3>✏️ Sửa vụ việc / đối tượng</h3>
+    <div style="max-height:64vh;overflow-y:auto;margin:-4px -4px 12px;padding:4px;">
+      <label class="sub" style="color:#1a3a6e;margin-top:4px;">📌 Vụ việc</label>
+      <div class="subj-form-grid">
+        <div class="span2"><label class="sub">Tên vụ việc</label><input type="text" id="ne_tenvuviec"></div>
+        <div><label class="sub">Ngày xảy ra vụ việc</label><input type="text" id="ne_ngayxayra" class="dateinp" placeholder="dd/mm/yyyy" inputmode="numeric"></div>
+        <div><label class="sub">Hệ *</label>
+          <select id="ne_he"><option value="hs">Hình sự</option><option value="ktmt">Kinh tế - Môi trường</option><option value="mt">Ma tuý</option></select>
+        </div>
+        <div class="span2"><label class="sub">Nơi xảy ra vụ việc</label><input type="text" id="ne_noixayra"></div>
+        <div><label class="sub">Khu phố nơi xảy ra vụ việc</label><select id="ne_khupho"><option value="">-- Ngoài địa bàn / chưa rõ --</option></select></div>
+      </div>
+      <label class="sub" style="color:#3730a3;margin-top:14px;">🧑 Đối tượng</label>
+      <div class="subj-form-grid">
+        <div><label class="sub">Họ và tên *</label><input type="text" id="ne_hoten"></div>
+        <div><label class="sub">Ngày sinh</label><input type="text" id="ne_ngaysinh" class="dateinp" placeholder="dd/mm/yyyy hoặc chỉ năm" inputmode="numeric"></div>
+        <div><label class="sub">Số CCCD</label><input type="text" id="ne_cccd"></div>
+        <div><label class="sub">Khu phố ở</label><select id="ne_khuphonoio"><option value="">-- Ngoài địa bàn / chưa rõ --</option></select></div>
+        <div class="span2"><label class="sub">Nơi ở trước khi bị bắt</label><input type="text" id="ne_noio"></div>
+      </div>
+      <div class="xuly-note" id="ne_dedup_note" style="color:#3730a3;"></div>
+      <label class="sub" style="margin-top:10px;">Đơn vị bắt</label>
+      <div class="xuly-opts">
+        <label><input type="radio" name="ne_donvi" value="cap" checked> CAP (Công an phường)</label>
+        <label><input type="radio" name="ne_donvi" value="khac"> Đơn vị khác</label>
+      </div>
+      <input type="text" id="ne_donvibat" placeholder="Tên đơn vị bắt..." style="display:none;margin-top:8px;width:100%;box-sizing:border-box;padding:9px 10px;border:1.5px solid #dde3f0;border-radius:8px;font-size:13px;">
+    </div>
+    <div class="settings-actions">
+      <button type="button" class="btn-def" id="neCancel">Huỷ</button>
+      <button type="button" class="btn-ok" id="neSave">💾 Lưu thay đổi</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /*! ExcelJS 19-10-2023 */
@@ -761,6 +1189,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
      sẽ tải Firebase để mọi máy/điện thoại đăng nhập cùng thấy chung 1 bộ dữ liệu. -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
 
 <script>
 const REGIONS = {
@@ -864,6 +1294,9 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "718136212071",
   appId: "1:718136212071:web:8f74f93018c9c54fdaf2c2"
 };
+/* Khoá site reCAPTCHA v3 dùng cho Firebase App Check. Điền để chặn mọi truy cập
+   KHÔNG xuất phát từ chính trang web này (script, Postman, bot). Xem tài liệu bảo mật. */
+const APP_CHECK_SITE_KEY = "";
 const SYNC_ENABLED = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId);
 let db = null;
 let cloudReady = false;
@@ -1007,6 +1440,7 @@ function saveAll(d) {
   saveAllLocal(d); // always cache locally for instant UI + offline fallback
   if (SYNC_ENABLED) {
     cloudEntries = d;
+    ghiNhatKy('luu_khu_pho');
     if (db) db.collection('khuphoTanBinh').doc('entries').set(d).catch(err => {
       console.error('Sync error', err);
       showToast('⚠️ Không đồng bộ được (kiểm tra mạng) — đã lưu tạm trên máy này');
@@ -1033,6 +1467,238 @@ function pushStyleToCloud(s) {
   }
 }
 
+/* ---------- Đối tượng: Danh sách đang quản lý (import từ Excel) ---------- */
+const SUBJ_QL_KEY = 'khuPhoTanBinh_doiTuongQL_v1';
+function loadSubjQLLocal() { try { return JSON.parse(localStorage.getItem(SUBJ_QL_KEY) || '[]'); } catch(e) { return []; } }
+function saveSubjQLLocal(arr) { localStorage.setItem(SUBJ_QL_KEY, JSON.stringify(arr)); }
+let cloudSubjQL = null;
+function loadSubjQL() { if (SYNC_ENABLED && cloudSubjQL) return cloudSubjQL; return loadSubjQLLocal(); }
+function saveSubjQL(arr) {
+  saveSubjQLLocal(arr);
+  if (SYNC_ENABLED) {
+    cloudSubjQL = arr;
+    ghiNhatKy('luu_danh_sach_quan_ly', arr.length + ' đối tượng');
+    if (db) db.collection('khuphoTanBinh').doc('doiTuongQL').set({ list: arr }).catch(err => {
+      console.error('Sync error', err);
+      showToast('⚠️ Không đồng bộ được danh sách đối tượng quản lý (kiểm tra mạng) — đã lưu tạm trên máy này');
+    });
+  }
+}
+
+/* ---------- Đối tượng: Nhập mới (bắt / phát hiện) ---------- */
+const SUBJ_NEW_KEY = 'khuPhoTanBinh_doiTuongMoi_v1';
+function loadSubjNewLocal() { try { return JSON.parse(localStorage.getItem(SUBJ_NEW_KEY) || '[]'); } catch(e) { return []; } }
+function saveSubjNewLocal(arr) { localStorage.setItem(SUBJ_NEW_KEY, JSON.stringify(arr)); }
+let cloudSubjNew = null;
+function loadSubjNew() { if (SYNC_ENABLED && cloudSubjNew) return cloudSubjNew; return loadSubjNewLocal(); }
+function saveSubjNew(arr) {
+  saveSubjNewLocal(arr);
+  if (SYNC_ENABLED) {
+    cloudSubjNew = arr;
+    ghiNhatKy('luu_vu_viec', arr.length + ' dòng');
+    if (db) db.collection('khuphoTanBinh').doc('doiTuongMoi').set({ list: arr }).catch(err => {
+      console.error('Sync error', err);
+      showToast('⚠️ Không đồng bộ được danh sách đối tượng mới nhập (kiểm tra mạng) — đã lưu tạm trên máy này');
+    });
+  }
+}
+
+/* ---------- Thống kê Hình sự / Kinh tế-MT / Ma tuý, tính từ 2 danh sách đối tượng ---------- */
+const HE_LIST = ['hs', 'ktmt', 'mt'];
+const HE_LABEL = { hs: 'Hình sự', ktmt: 'Kinh tế - Môi trường', mt: 'Ma tuý' };
+function normKey(s) { return String(s || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+/* ===================== CHUẨN HOÁ & KHOÁ LỌC TRÙNG =====================
+   Theo yêu cầu nghiệp vụ:
+   - VỤ VIỆC: lọc trùng theo NƠI XẢY RA VỤ VIỆC (cùng 1 địa chỉ = 1 vụ, dù nhập nhiều dòng
+     cho nhiều đối tượng). Nếu không có địa chỉ thì lấy tạm "Tên vụ việc" làm khoá.
+   - ĐỐI TƯỢNG: lọc trùng theo HỌ VÀ TÊN (1 người xuất hiện ở nhiều dòng / nhiều trang tính
+     chỉ được đếm 1 lần).                                                                   */
+/* Các từ chỉ LOẠI HÌNH / ĐƠN VỊ HÀNH CHÍNH — không dùng để phân biệt địa điểm.
+   "Nhà trọ 622/35 Cộng Hoà, KP15, phường Tân Bình, TP. HCM" và
+   "622/35 Cộng Hoà, Khu phố 15, phường Tân Bình, TP. Hồ Chí Minh" => CÙNG 1 địa điểm.
+   LƯU Ý: mọi CON SỐ đều được giữ nguyên, nên "phòng 201 nhà trọ số 32" và "phòng 203 nhà trọ
+   số 32", hay "bàn số 1" và "bàn số 2" vẫn là HAI địa điểm khác nhau => 2 vụ việc. */
+const ADDR_PHRASE_DROP = [
+  'thanh pho ho chi minh', 'ho chi minh', 'tp hcm', 'tphcm', 'hcm',
+  'nha tro', 'nha nghi', 'nha hang', 'chung cu', 'can ho', 'cua hang',
+  'khach san', 'sieu thi', 'cong ty tnhh', 'cong ty', 'trung tam',
+  'so nha', 'dia chi', 'thanh pho',
+];
+const ADDR_WORD_DROP = new Set(['tp', 'tt', 'phuong', 'p', 'quan', 'q', 'tinh', 'huyen', 'xa', 'duong', 'so', 'nha', 'hem', 'ngo', 'kiet', 'tai', 'tren', 'truoc', 'trong']);
+function normAddr(text) {
+  // 1) bỏ dấu + chữ "đ" -> "d"
+  let t = normKey(text).replace(/đ/g, 'd');
+  // 2) đồng nhất cách viết "khu phố" / "kp." -> "kp"
+  t = t.replace(/khu\s*ph[o]?\s*(?:so\s*)?/g, 'kp ').replace(/\bkp\.?\s*/g, 'kp ');
+  // 3) mọi ký tự không phải chữ/số -> khoảng trắng
+  t = t.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+  // 4) bỏ các CỤM từ chỉ loại hình / đơn vị hành chính
+  ADDR_PHRASE_DROP.forEach(ph => { t = t.split(' ' + ph + ' ').join(' '); });
+  t = ' ' + t + ' ';
+  ADDR_PHRASE_DROP.forEach(ph => { t = t.split(' ' + ph + ' ').join(' '); });
+  // 5) bỏ các TỪ đơn chỉ loại hình + bỏ số 0 vô nghĩa ở đầu ("kp 02" = "kp 2")
+  t = t.trim().split(' ').filter(w => w && !ADDR_WORD_DROP.has(w))
+       .map(w => /^0+\d+$/.test(w) ? w.replace(/^0+/, '') : w)
+       .join(' ');
+  return t.trim();
+}
+/* Định dạng ngày hiển thị THỐNG NHẤT dd/mm/yyyy trên toàn bộ phần mềm.
+   Dữ liệu lưu trong máy vẫn ở dạng yyyy-mm-dd (chuẩn để so sánh/sắp xếp),
+   chỉ khi HIỂN THỊ và XUẤT EXCEL mới đổi sang dd/mm/yyyy.
+   Nếu chỉ có năm (VD "1988") thì giữ nguyên năm. */
+// Đọc giá trị người dùng gõ ở ô ngày (dd/mm/yyyy hoặc chỉ năm) -> dạng lưu trữ chuẩn yyyy-mm-dd.
+function parseNgayInput(v) {
+  const t = String(v || '').trim();
+  if (!t) return '';
+  const k = ngaySinhKey(t);
+  if (k) return k;
+  if (/^(?:18|19|20)\d{2}$/.test(t)) return t;
+  return t;
+}
+function fmtNgay(v) {
+  const t = String(v || '').trim();
+  if (!t) return '';
+  const k = ngaySinhKey(t);
+  if (k) { const p = k.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  return t;
+}
+function normNameKey(text) { return normKey(text).replace(/\s+/g, ' ').trim(); }
+function onlyDigits(v) { return String(v || '').replace(/[^0-9]/g, ''); }
+// Khoá lọc trùng của 1 VỤ VIỆC = NƠI XẢY RA + TÊN VỤ VIỆC.
+// - Nhiều đối tượng bị bắt trong CÙNG 1 vụ (cùng địa chỉ, cùng hành vi) -> chỉ tính 1 vụ.
+// - Cùng 1 địa chỉ nhưng là 2 hành vi/tội danh khác nhau (VD cùng con đường: "Mua bán trái phép
+//   chất ma tuý" và "Tổ chức sử dụng trái phép chất ma tuý") -> đúng nghiệp vụ phải tính 2 vụ.
+// - Thiếu 1 trong 2 thì lấy cái còn lại làm khoá.
+function vuKey(s) {
+  const a = normAddr(s.noiXayRa), t = normNameKey(s.tenVuViec);
+  if (a && t) return a + ' || ' + t;
+  return a || t || '';
+}
+// Khoá lọc trùng của 1 ĐỐI TƯỢNG (họ và tên).
+function dtKey(s) { return normNameKey(s.hoTen); }
+// Đếm số VỤ VIỆC riêng biệt trong 1 mảng dòng phẳng (đã lọc trùng địa chỉ).
+function demVuViec(list) { const set = new Set(); list.forEach(s => { const k = vuKey(s); if (k) set.add(k); }); return set.size; }
+// Đếm số ĐỐI TƯỢNG riêng biệt trong 1 mảng dòng phẳng (đã lọc trùng họ tên, bỏ dòng không có tên).
+function demDoiTuong(list) { const set = new Set(); list.forEach(s => { const k = dtKey(s); if (k) set.add(k); }); return set.size; }
+// Thống kê nhanh theo hệ: { vu: {hs,ktmt,mt,total}, dt: {...} }
+function thongKeTheoHe(list) {
+  const res = { vu: { hs: 0, ktmt: 0, mt: 0, total: 0 }, dt: { hs: 0, ktmt: 0, mt: 0, total: 0 } };
+  HE_LIST.forEach(he => {
+    const sub = list.filter(s => s.he === he);
+    res.vu[he] = demVuViec(sub);
+    res.dt[he] = demDoiTuong(sub);
+  });
+  res.vu.total = demVuViec(list);
+  res.dt.total = demDoiTuong(list);
+  return res;
+}
+
+/* ---------- Đếm theo từng khu phố (đã lọc trùng) ---------- */
+// Danh sách ĐANG QUẢN LÝ là hồ sơ chính thức: mỗi dòng = 1 người, ĐẾM NGUYÊN (không lọc trùng tên),
+// vì hai người khác nhau hoàn toàn có thể trùng họ tên. Chỉ danh sách "mới bắt" (nhập từ file tổng
+// hợp, 1 người có thể nằm ở nhiều dòng/nhiều trang tính) mới cần lọc trùng theo họ tên.
+function countDangQuanLy(kp, he) { return loadSubjQL().filter(s => s.khuPho === kp && s.he === he).length; }
+// QUAN TRỌNG: đếm Sót lọt / Đơn vị khác bắt theo KHU PHỐ NƠI Ở CỦA ĐỐI TƯỢNG (khuPhoNoiO),
+// KHÔNG phải theo khu phố nơi xảy ra vụ việc (khuPho). Lý do: 1 vụ việc có thể xảy ra ở nơi không
+// thuộc phường Tân Bình (khuPho để trống, không tính vụ đó vào khu phố nào), nhưng đối tượng gây án
+// vẫn có thể có hộ khẩu/nơi ở tại một khu phố cụ thể của phường -> khu phố đó vẫn phải được +1 đối tượng.
+function countSotLot(kp, he) { return demDoiTuong(loadSubjNew().filter(s => s.khuPhoNoiO === kp && s.he === he && s.xuLy === 'sot_lot')); }
+function countDonViKhac(kp, he) { return demDoiTuong(loadSubjNew().filter(s => s.khuPhoNoiO === kp && s.he === he && s.xuLy === 'don_vi_khac')); }
+// Tự nhận diện số khu phố (1-32) từ 1 chuỗi địa chỉ tự do, ví dụ "12 Bàu Cát, khu phố 1, P.Tân Bình"
+// -> 1. Không phân biệt hoa/thường, có dấu/không dấu, có hoặc không có khoảng trắng/dấu chấm.
+// Nếu không tìm thấy mẫu "khu phố N" / "kp N" hợp lệ (1-32) -> coi như ngoài địa bàn, trả về null.
+function extractKhuPho(text) {
+  const norm = normKey(text);
+  let m = norm.match(/khu\s*ph[o]?\s*(?:so\s*)?(\d{1,2})/);
+  if (!m) m = norm.match(/\bkp\.?\s*(\d{1,2})\b/);
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  return (n >= 1 && n <= 32) ? n : null;
+}
+// TỔNG ĐỐI TƯỢNG của 1 khu phố/hệ = Đang quản lý + Sót lọt + Đơn vị khác bắt.
+// (VD yêu cầu: đang quản lý ma tuý 90, đối tượng mới bắt hệ ma tuý ở khu phố đó 20 -> tổng 110.)
+function countTongDoiTuong(kp, he) { return countDangQuanLy(kp, he) + countSotLot(kp, he) + countDonViKhac(kp, he); }
+function countTongSoVu(kp, he) { const d = getEntry(kp); return Number(d['stat_vu_' + he] || 0); }
+// Đếm SỐ VỤ VIỆC RIÊNG BIỆT của 1 khu phố/hệ: LỌC TRÙNG THEO "NƠI XẢY RA VỤ VIỆC".
+// Nhiều đối tượng cùng bị bắt tại 1 địa chỉ -> chỉ tính 1 vụ.
+function countDistinctVuViec(kp, he) {
+  return demVuViec(loadSubjNew().filter(s => s.khuPho === kp && s.he === he));
+}
+// Ghi số vụ việc vừa đếm được (countDistinctVuViec) vào trường "Tổng số vụ" (stat_vu_<he>) của khu phố.
+// Dùng thêm cờ "stat_vu_<he>_auto" để phân biệt số đã được PHẦN MỀM tự tính với số người dùng gõ tay.
+function recomputeTongSoVu(kp, he) {
+  const n = countDistinctVuViec(kp, he);
+  const all = loadAll();
+  const cur = Object.assign({}, all[kp] || {});
+  const wasAuto = !!cur['stat_vu_' + he + '_auto'];
+  if (n <= 0 && !wasAuto) return;
+  if (wasAuto && Number(cur['stat_vu_' + he] || 0) === n) return; // đã đúng, khỏi ghi lại tránh spam đồng bộ cloud
+  cur['stat_vu_' + he] = n;
+  cur['stat_vu_' + he + '_auto'] = true;
+  saveAll(Object.assign({}, all, { [kp]: cur }));
+}
+function recomputeAllTongSoVuFromVuViec() {
+  for (let kp = 1; kp <= 32; kp++) HE_LIST.forEach(he => recomputeTongSoVu(kp, he));
+}
+
+/* ---------- So sánh ngày sinh (chịu được "1988", "25/05/1990", "1990-05-25") ---------- */
+function namSinhOf(v) { const m = String(v || '').match(/(?:18|19|20)\d{2}/); return m ? m[0] : ''; }
+function ngaySinhKey(v) {
+  const t = String(v || '').trim();
+  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);            // 1990-05-25
+  if (m) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+  m = t.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);     // 25/05/1990
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return '';
+}
+// true = chắc chắn CÙNG người theo ngày sinh; false = chắc chắn KHÁC; null = không đủ dữ liệu để kết luận.
+function soSanhNgaySinh(a, b) {
+  const fa = ngaySinhKey(a), fb = ngaySinhKey(b);
+  if (fa && fb) return fa === fb;
+  const ya = namSinhOf(a), yb = namSinhOf(b);
+  if (!ya || !yb) return null;          // 1 trong 2 bên không có năm sinh -> không kết luận
+  return ya === yb;                      // chỉ có năm -> so theo năm
+}
+
+/* ---------- Đối chiếu 1 đối tượng mới với "Danh sách đang quản lý" ----------
+   Tiêu chí theo yêu cầu: HỌ VÀ TÊN + NĂM SINH + CCCD (KHÔNG còn bắt buộc trùng khu phố nơi ở,
+   vì đối tượng đang quản lý có thể bị bắt ở khu phố khác mà vẫn là chính người đó).
+   - Trùng CCCD (12 số) -> chắc chắn cùng người.
+   - Trùng tên + trùng năm sinh/ngày sinh -> cùng người.
+   - Trùng tên, 1 bên không có năm sinh & không có CCCD -> vẫn coi là cùng người (dữ liệu thiếu).
+   - Trùng tên nhưng năm sinh MÂU THUẪN rõ ràng -> KHÔNG phải cùng người (=> Sót lọt).
+   Tham số khuPhoNoiO giữ lại cho tương thích chữ ký cũ nhưng KHÔNG dùng để đối chiếu nữa.     */
+function timTrungDoiTuongQL(hoTen, khuPhoNoiO, ngaySinh, cccd) {
+  const ten = normNameKey(hoTen);
+  if (!ten) return null;
+  const cands = loadSubjQL().filter(s => normNameKey(s.hoTen) === ten);
+  if (cands.length === 0) return null;
+  const c = onlyDigits(cccd);
+  if (c.length >= 9) {
+    const byCccd = cands.filter(s => onlyDigits(s.cccd) === c);
+    if (byCccd.length > 0) return byCccd[0];
+  }
+  const khop = cands.filter(s => soSanhNgaySinh(ngaySinh, s.ngaySinh) === true);
+  if (khop.length > 0) return khop[0];
+  const mauThuan = cands.filter(s => soSanhNgaySinh(ngaySinh, s.ngaySinh) === false);
+  if (mauThuan.length === cands.length) return null;   // tất cả đều khác năm sinh -> khác người
+  return cands.find(s => soSanhNgaySinh(ngaySinh, s.ngaySinh) === null) || cands[0];
+}
+// Tính lại trạng thái Sót lọt cho TOÀN BỘ danh sách đối tượng mới (dùng khi danh sách quản lý
+// vừa thay đổi: nhập Excel mới, thêm/sửa/xoá đối tượng đang quản lý).
+function recomputeSotLotAll() {
+  const list = loadSubjNew();
+  let changed = 0;
+  list.forEach(s => {
+    if (!s.hoTen) { if (s.xuLy) { s.xuLy = ''; changed++; } return; }   // dòng chỉ có vụ việc, chưa có đối tượng
+    if (s.xuLy === 'don_vi_khac') return;                                // đơn vị khác bắt: giữ nguyên
+    const moi = timTrungDoiTuongQL(s.hoTen, s.khuPhoNoiO, s.ngaySinh, s.cccd) ? 'phuong_bat' : 'sot_lot';
+    if (s.xuLy !== moi) { s.xuLy = moi; changed++; }
+  });
+  if (changed) saveSubjNew(list);
+  return changed;
+}
+
 function setSyncIcon(icon, cls, tooltip) {
   const el = document.getElementById('syncIcon');
   if (!el) return;
@@ -1041,20 +1707,216 @@ function setSyncIcon(icon, cls, tooltip) {
   el.title = tooltip;
 }
 
+/* =====================================================================
+   XÁC THỰC NGƯỜI DÙNG (Firebase Authentication)
+   Khi đã bật đồng bộ, ứng dụng BẮT BUỘC đăng nhập mới xem được dữ liệu.
+   Tài khoản do quản trị viên tạo trong Firebase Console — không có tự đăng ký.
+   Quyền của từng tài khoản lưu tại: nguoiDung/{uid} = { quyen: 'quantri' | 'xem', hoTen, active }
+   Mọi việc chặn thật sự nằm ở Firestore Security Rules trên máy chủ, giao diện
+   chỉ là lớp thuận tiện cho người dùng.
+   ===================================================================== */
+let auth = null;
+let currentUser = null;
+let userRole = null;          // 'quantri' = được sửa; 'xem' = chỉ đọc
+let dataSyncStarted = false;
+let idleTimer = null;
+const IDLE_LOGOUT_MS = 20 * 60 * 1000;   // tự đăng xuất sau 20 phút không thao tác
+
+// Xoá sạch bản sao dữ liệu nghiệp vụ lưu tạm trên máy — dùng khi chưa/không còn đăng nhập,
+// để máy dùng chung không còn dấu vết dữ liệu của người trước.
+function xoaDuLieuCucBo() {
+  [STORAGE_KEY, STORAGE_KEY_OLD, SUBJ_QL_KEY, SUBJ_NEW_KEY].forEach(k => localStorage.removeItem(k));
+  cloudEntries = null; cloudSubjQL = null; cloudSubjNew = null;
+}
+
+// Ghi nhật ký thao tác lên máy chủ (append-only). Không chặn luồng chính nếu ghi lỗi.
+function ghiNhatKy(hanhDong, chiTiet) {
+  if (!db || !currentUser) return;
+  db.collection('nhatKy').add({
+    hanhDong, chiTiet: chiTiet || '',
+    uid: currentUser.uid, email: currentUser.email || '',
+    thoiGian: firebase.firestore.FieldValue.serverTimestamp(),
+    thietBi: (navigator.userAgent || '').slice(0, 180),
+  }).catch(() => {});
+}
+
+function authShowError(msg) {
+  const el = document.getElementById('authErr');
+  if (el) el.textContent = msg || '';
+}
+function showAuthGate(show) {
+  document.getElementById('authGate').classList.toggle('show', show);
+  document.getElementById('userChip').style.display = show ? 'none' : 'inline-flex';
+  document.getElementById('btnLogout').style.display = show ? 'none' : 'inline-flex';
+  if (show) {
+    const p = document.getElementById('authPass'); if (p) p.value = '';
+  }
+}
+function resetIdleTimer() {
+  if (!SYNC_ENABLED || !currentUser) return;
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    showToast('🔒 Đã tự đăng xuất do không thao tác trong 20 phút');
+    if (auth) auth.signOut();
+  }, IDLE_LOGOUT_MS);
+}
+['click', 'keydown', 'touchstart', 'mousemove'].forEach(ev =>
+  document.addEventListener(ev, resetIdleTimer, { passive: true }));
+
+async function handleAuthChanged(user) {
+  if (!user) {
+    if (currentUser) ghiNhatKy('dang_xuat');
+    currentUser = null; userRole = null;
+    clearTimeout(idleTimer);
+    xoaDuLieuCucBo();
+    if (typeof refreshDots === 'function' && !adjustMode) refreshDots();
+    setSyncIcon('🔒', 'local', 'Chưa đăng nhập');
+    showAuthGate(true);
+    return;
+  }
+  try {
+    const snap = await db.collection('nguoiDung').doc(user.uid).get();
+    const info = snap.exists ? (snap.data() || {}) : null;
+    if (!info || info.active === false) {
+      await auth.signOut();
+      authShowError('Tài khoản chưa được quản trị viên cấp quyền sử dụng hệ thống.');
+      return;
+    }
+    currentUser = user;
+    userRole = info.quyen === 'quantri' ? 'quantri' : 'xem';
+    unlocked = (userRole === 'quantri');
+    const chip = document.getElementById('userChip');
+    chip.innerHTML = '👤 ' + escapeHtml(info.hoTen || user.email || '') +
+      ' <span class="role">' + (userRole === 'quantri' ? '· QUẢN TRỊ' : '· CHỈ XEM') + '</span>';
+    authShowError('');
+    showAuthGate(false);
+    resetIdleTimer();
+    startDataSync();
+    ghiNhatKy('dang_nhap');
+  } catch (err) {
+    console.error(err);
+    authShowError(err.code === 'permission-denied'
+      ? 'Quy tắc bảo mật đang chặn việc đọc hồ sơ quyền. Kiểm tra lại phần match /nguoiDung/{id} trong Firestore Rules.'
+      : 'Không kiểm tra được quyền truy cập: ' + (err.code || err.message));
+    if (auth) auth.signOut();
+  }
+}
+
+// Hiện màn hình đăng nhập ở trạng thái KHÔNG dùng được, kèm lý do cụ thể.
+// Trước đây lỗi khởi tạo bị nuốt mất: người dùng chỉ thấy bản đồ trống, không hiểu vì sao.
+function chanDangNhap(lyDo, goiY) {
+  showAuthGate(true);
+  const btn = document.getElementById('authLogin');
+  if (btn) { btn.disabled = true; btn.textContent = 'Không thể đăng nhập'; }
+  authShowError(lyDo);
+  const note = document.querySelector('.auth-note');
+  if (note && goiY) note.innerHTML = goiY;
+  setSyncIcon('⚠️', 'offline', lyDo);
+}
+
 function initSync() {
   if (!SYNC_ENABLED) {
     setSyncIcon('📴', 'local', 'Dữ liệu đang lưu trên máy này (chưa đồng bộ nhiều máy)');
+    showAuthGate(false);
+    return;
+  }
+  // 1) Mở tệp trực tiếp từ ổ đĩa (file://) thì Firebase Authentication KHÔNG chạy được.
+  //    Bắt buộc truy cập qua http/https (Firebase Hosting, hoặc máy chủ nội bộ).
+  if (location.protocol === 'file:') {
+    chanDangNhap(
+      'Không đăng nhập được khi mở tệp trực tiếp từ ổ đĩa.',
+      'Nguyên nhân: đường dẫn đang là <b>file://</b>. Firebase Authentication chỉ hoạt động qua <b>http</b> hoặc <b>https</b>.<br><br>' +
+      'Cách xử lý: đưa tệp lên <b>Firebase Hosting</b> rồi truy cập bằng địa chỉ https, ' +
+      'hoặc chạy thử tại máy bằng lệnh <b>npx serve</b> / <b>python -m http.server</b> rồi mở <b>http://localhost:8000</b>.'
+    );
+    return;
+  }
+  // 2) Không tải được thư viện Firebase (mất mạng, bị chặn gstatic.com, mở lúc chưa có kết nối).
+  if (typeof firebase === 'undefined' || typeof firebase.auth !== 'function' || typeof firebase.firestore !== 'function') {
+    chanDangNhap(
+      'Chưa tải được thư viện Firebase.',
+      'Nguyên nhân thường gặp: máy không có kết nối Internet, hoặc mạng cơ quan chặn <b>www.gstatic.com</b>.<br><br>' +
+      'Cách xử lý: kiểm tra kết nối mạng, đề nghị bộ phận kỹ thuật mở truy cập tới gstatic.com và firebaseapp.com, rồi tải lại trang (F5).'
+    );
     return;
   }
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
+    // App Check: chặn các yêu cầu KHÔNG xuất phát từ chính trang web này (bot, script, Postman).
+    // Điền APP_CHECK_SITE_KEY để bật; để trống thì bỏ qua.
+    if (typeof APP_CHECK_SITE_KEY === 'string' && APP_CHECK_SITE_KEY) {
+      try {
+        firebase.appCheck().activate(APP_CHECK_SITE_KEY, true);
+      } catch (e) { console.error('App Check', e); }
+    }
     db = firebase.firestore();
-    db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
-    setSyncIcon('🔄', 'local', 'Đang kết nối đồng bộ dữ liệu...');
+    // KHÔNG bật offline persistence khi đã có xác thực: dữ liệu nghiệp vụ sẽ không bị
+    // lưu lại trong IndexedDB của máy dùng chung sau khi người dùng rời đi.
+    auth = firebase.auth();
+    // Phiên đăng nhập chỉ tồn tại trong tab đang mở — đóng trình duyệt là phải đăng nhập lại.
+    auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(() => {});
+    setSyncIcon('🔄', 'local', 'Đang kết nối...');
+    xoaDuLieuCucBo();
+    showAuthGate(true);
+    auth.onAuthStateChanged(handleAuthChanged);
 
+    document.getElementById('authLogin').addEventListener('click', dangNhap);
+    document.getElementById('authPass').addEventListener('keydown', e => { if (e.key === 'Enter') dangNhap(); });
+    document.getElementById('authEmail').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('authPass').focus(); });
+    document.getElementById('btnLogout').addEventListener('click', () => {
+      if (!confirm('Đăng xuất khỏi hệ thống?')) return;
+      auth.signOut();
+    });
+  } catch (err) {
+    console.error(err);
+    chanDangNhap(
+      'Lỗi khởi tạo: ' + (err.code || err.message),
+      'Kiểm tra lại 6 dòng <b>FIREBASE_CONFIG</b> trong tệp, và chắc chắn đã bật <b>Authentication → Email/Password</b> ' +
+      'cùng <b>Firestore Database</b> trong Firebase Console.'
+    );
+  }
+}
+
+async function dangNhap() {
+  const btn = document.getElementById('authLogin');
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  if (!email || !pass) { authShowError('Vui lòng nhập đủ tài khoản và mật khẩu.'); return; }
+  btn.disabled = true; authShowError('');
+  const diagEl = document.getElementById('authDiag'); if (diagEl) diagEl.textContent = '';
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch (err) {
+    // Không nói rõ sai tài khoản hay sai mật khẩu, tránh dò tìm tài khoản hợp lệ.
+    const nhe = {
+      'auth/invalid-email': 'Địa chỉ email không hợp lệ (có thể dư dấu cách hoặc thiếu ký tự).',
+      'auth/missing-password': 'Chưa nhập mật khẩu.',
+      'auth/user-disabled': 'Tài khoản này đã bị vô hiệu hoá trong Firebase Authentication.',
+      'auth/too-many-requests': 'Sai quá nhiều lần, tài khoản tạm bị khoá. Thử lại sau ít phút.',
+      'auth/network-request-failed': 'Không có kết nối mạng.',
+      'auth/operation-not-allowed': 'Chưa bật Email/Password trong Firebase → Authentication → Sign-in method.',
+      'auth/unauthorized-domain': 'Tên miền đang truy cập chưa có trong Authentication → Settings → Authorized domains.',
+      'auth/invalid-api-key': 'Sai apiKey trong FIREBASE_CONFIG.',
+      'auth/operation-not-supported-in-this-environment': 'Phải mở qua địa chỉ http/https, không mở tệp trực tiếp từ ổ đĩa.',
+    };
+    authShowError(nhe[err.code] || 'Tài khoản hoặc mật khẩu không đúng.');
+    // Dòng chẩn đoán: hiện mã lỗi kỹ thuật và ĐÚNG dự án Firebase mà tệp đang trỏ tới.
+    // Rất hay gặp: tài khoản được tạo ở dự án A nhưng FIREBASE_CONFIG trong tệp vẫn trỏ dự án B.
+    const diag = document.getElementById('authDiag');
+    if (diag) diag.textContent = 'Mã lỗi: ' + (err.code || err.message) + ' · Dự án: ' + FIREBASE_CONFIG.projectId;
+  } finally { btn.disabled = false; }
+}
+
+function startDataSync() {
+  if (dataSyncStarted) return;
+  dataSyncStarted = true;
+  try {
     db.collection('khuphoTanBinh').doc('entries').onSnapshot(doc => {
       const incoming = doc.exists ? (doc.data() || {}) : {};
-      const incomingEmpty = Object.keys(incoming).length === 0;
+      // CHỈ coi là "máy chủ chưa có gì" khi tài liệu CHƯA TỒN TẠI.
+      // Nếu tài liệu đã tồn tại nhưng rỗng => người dùng đã CHỦ ĐỘNG XOÁ trên một máy khác,
+      // phải tôn trọng việc xoá đó, tuyệt đối không đẩy dữ liệu cũ của máy này lên lại.
+      const incomingEmpty = !doc.exists;
 
       // Safety net: first connection ever, server has nothing yet, but this device
       // already has data typed in before sync was turned on — offer to migrate it
@@ -1148,9 +2010,41 @@ function initSync() {
         applyMarqueeToDom(cfg);
       }
     }, err => console.error(err));
+
+    let subjQLSynced = false;
+    db.collection('khuphoTanBinh').doc('doiTuongQL').onSnapshot(doc => {
+      const incoming = doc.exists ? (doc.data().list || []) : [];
+      // Chỉ đẩy dữ liệu cũ của máy này lên khi máy chủ CHƯA TỪNG có tài liệu này.
+      // Nếu tài liệu đã tồn tại mà danh sách rỗng => đó là lệnh XOÁ từ máy khác, phải xoá theo.
+      if (!subjQLSynced && !doc.exists) {
+        const local = loadSubjQLLocal();
+        if (local.length > 0) { subjQLSynced = true; saveSubjQL(local); return; }
+      }
+      subjQLSynced = true;
+      cloudSubjQL = incoming;
+      saveSubjQLLocal(cloudSubjQL);
+      if (!adjustMode) refreshDots();
+      refreshStatsIfOpen();
+      if (subjectsOverlayIsOpen()) renderSubjectsPage();
+    }, err => console.error(err));
+
+    let subjNewSynced = false;
+    db.collection('khuphoTanBinh').doc('doiTuongMoi').onSnapshot(doc => {
+      const incoming = doc.exists ? (doc.data().list || []) : [];
+      if (!subjNewSynced && !doc.exists) {
+        const local = loadSubjNewLocal();
+        if (local.length > 0) { subjNewSynced = true; saveSubjNew(local); return; }
+      }
+      subjNewSynced = true;
+      cloudSubjNew = incoming;
+      saveSubjNewLocal(cloudSubjNew);
+      if (!adjustMode) refreshDots();
+      refreshStatsIfOpen();
+      if (subjectsOverlayIsOpen()) renderSubjectsPage();
+    }, err => console.error(err));
   } catch (err) {
     console.error(err);
-    setSyncIcon('⚠️', 'offline', 'Lỗi cấu hình đồng bộ — đang dùng dữ liệu lưu trên máy này');
+    setSyncIcon('⚠️', 'offline', 'Lỗi kết nối dữ liệu — kiểm tra mạng và quyền truy cập');
   }
 }
 function listOverlayIsOpen() {
@@ -1176,9 +2070,9 @@ function displayNameNew(kp) { const d = getEntry(kp); return (d.name_new && d.na
 function displayNameOld(kp) { const d = getEntry(kp); return (d.name_old && d.name_old.trim()) || (OLD_KP[kp] || '—'); }
 function hasData(kp) {
   const d = getEntry(kp);
-  return !!(d.streets || d.truong_name || d.truong_phone || d.cskv_name || d.cskv_phone ||
+  return !!(d.streets || d.cskv_name || d.cskv_phone ||
     d.pctp_hs_name || d.pctp_hs_phone || d.pctp_mt_name || d.pctp_mt_phone || d.pctp_ktmt_name || d.pctp_ktmt_phone ||
-    d.cstt_tt_name || d.cstt_tt_phone || d.cstt_pc_name || d.cstt_pc_phone);
+    d.stat_vu_hs || d.stat_vu_ktmt || d.stat_vu_mt);
 }
 function getMarkerPos(kp) {
   const pos = loadPos();
@@ -1228,6 +2122,15 @@ let unlocked = false;
 const lockPop = document.getElementById('lockPop');
 let pendingAction = null;
 function requireUnlock(action) {
+  // Khi đã bật đồng bộ + xác thực: quyền sửa xác định bằng TÀI KHOẢN, không dùng mật khẩu chung nữa.
+  // Lưu ý: đây chỉ là lớp tiện dụng cho giao diện — việc chặn thật sự do Firestore Rules đảm nhiệm.
+  if (SYNC_ENABLED) {
+    if (!currentUser) { showToast('🔒 Vui lòng đăng nhập để thao tác'); return; }
+    if (userRole !== 'quantri') { showToast('🔒 Tài khoản của bạn chỉ được XEM, không được sửa dữ liệu'); return; }
+    resetIdleTimer();
+    action();
+    return;
+  }
   if (unlocked) { action(); return; }
   pendingAction = action;
   document.getElementById('lockInput').value = '';
@@ -1315,7 +2218,7 @@ function buildSvg() {
     const dot = document.createElementNS(NS, "circle");
     dot.setAttribute("class", "dot");
     dot.setAttribute("r", Math.max(0.3, markerStyle.ringSize - 0.4));
-    dot.setAttribute("fill", hasData(kp) ? markerStyle.colorFilled : markerStyle.colorEmpty);
+    dot.setAttribute("fill", dotFillColor(kp));
     dot.setAttribute("id", "dot-" + kp);
     g.appendChild(dot);
 
@@ -1377,7 +2280,7 @@ document.getElementById('btnAdjustDone').addEventListener('click', () => setAdju
 function refreshDots() {
   for (let kp = 1; kp <= 32; kp++) {
     const d = document.getElementById('dot-' + kp);
-    if (d) d.setAttribute('fill', hasData(kp) ? markerStyle.colorFilled : markerStyle.colorEmpty);
+    if (d) d.setAttribute('fill', dotFillColor(kp));
   }
   let filled = 0;
   for (let kp = 1; kp <= 32; kp++) if (hasData(kp)) filled++;
@@ -1391,7 +2294,7 @@ function applyMarkerStyle() {
     if (ring) ring.setAttribute('r', markerStyle.ringSize);
     if (dot) {
       dot.setAttribute('r', Math.max(0.3, markerStyle.ringSize - 0.4));
-      dot.setAttribute('fill', hasData(kp) ? markerStyle.colorFilled : markerStyle.colorEmpty);
+      dot.setAttribute('fill', dotFillColor(kp));
     }
     if (label) label.setAttribute('style', 'font-size:' + markerStyle.textSize + 'px;');
   }
@@ -1513,9 +2416,7 @@ function fillView(kp) {
   setPerson('v_pctp_hs', d.pctp_hs_name, d.pctp_hs_phone);
   setPerson('v_pctp_mt', d.pctp_mt_name, d.pctp_mt_phone);
   setPerson('v_pctp_ktmt', d.pctp_ktmt_name, d.pctp_ktmt_phone);
-  setPerson('v_cstt_tt', d.cstt_tt_name, d.cstt_tt_phone);
-  setPerson('v_cstt_pc', d.cstt_pc_name, d.cstt_pc_phone);
-  setPerson('v_truong', d.truong_name, d.truong_phone);
+  renderStatsView(kp);
 }
 function setVal(id, val) {
   const el = document.getElementById(id);
@@ -1553,6 +2454,99 @@ function setPerson(id, name, phone) {
     el.appendChild(phoneEl);
   }
 }
+// Tổng toàn phường (cộng cả 32 khu phố) của 1 hệ, dùng làm mẫu số tính tỷ lệ %.
+function tongToanPhuong(he, type) { // type: 'vu' | 'dt'
+  let sum = 0;
+  for (let kp = 1; kp <= 32; kp++) sum += type === 'vu' ? countTongSoVu(kp, he) : countTongDoiTuong(kp, he);
+  return sum;
+}
+function pctBadge(part, total) {
+  if (!total || !part) return '';
+  const pct = part / total * 100;
+  const txt = pct >= 10 ? pct.toFixed(0) : pct.toFixed(1);
+  return ' <span class="pct-badge">' + txt + '%</span>';
+}
+function renderStatsView(kp) {
+  HE_LIST.forEach(he => {
+    const vu = countTongSoVu(kp, he);
+    const dql = countDangQuanLy(kp, he);
+    const sl = countSotLot(kp, he);
+    const dvk = countDonViKhac(kp, he);
+    const tong = dql + sl + dvk;
+    document.getElementById('v_stat_vu_' + he).innerHTML = vu + pctBadge(vu, tongToanPhuong(he, 'vu'));
+    document.getElementById('v_stat_tong_' + he).innerHTML = tong + pctBadge(tong, tongToanPhuong(he, 'dt'));
+    document.getElementById('v_stat_dql_' + he).textContent = dql;
+    document.getElementById('v_stat_sl_' + he).textContent = sl;
+    document.getElementById('v_stat_dvk_' + he).textContent = dvk;
+  });
+}
+function renderStatsEdit(kp) {
+  const d = getEntry(kp);
+  HE_LIST.forEach(he => {
+    document.getElementById('f_stat_vu_' + he).value = d['stat_vu_' + he] || '';
+    const dql = countDangQuanLy(kp, he);
+    const sl = countSotLot(kp, he);
+    const dvk = countDonViKhac(kp, he);
+    const tong = dql + sl + dvk;
+    document.getElementById('f_stat_tong_' + he).innerHTML = tong + pctBadge(tong, tongToanPhuong(he, 'dt'));
+    document.getElementById('f_stat_dql_' + he).textContent = dql;
+    document.getElementById('f_stat_sl_' + he).textContent = sl;
+    document.getElementById('f_stat_dvk_' + he).textContent = dvk;
+  });
+}
+function refreshStatsIfOpen() {
+  if (!currentKP) return;
+  if (document.getElementById('viewMode').style.display !== 'none') renderStatsView(currentKP);
+  if (document.getElementById('editMode').style.display !== 'none') renderStatsEdit(currentKP);
+}
+
+/* ---------- Bản đồ nhiệt (heat map): 2 trục độc lập ----------
+   Trục 1 - Loại thống kê: 'combined' (vụ+đối tượng gộp) | 'vu' (chỉ số vụ) | 'dt' (chỉ số đối tượng)
+   Trục 2 - Hệ: 'total' (cộng cả 3 hệ) | 'hs' | 'ktmt' | 'mt'
+   => đúng 3 cách thống kê người dùng mô tả: theo số vụ, theo số đối tượng, hoặc tổng hợp cả hai. */
+let heatEnabled = false;
+let heatStatType = 'combined';
+let heatHeFilter = 'total';
+let heatCache = null; // { key, values: {1..32: number}, max: number }
+function heatValue(kp) {
+  const heList = heatHeFilter === 'total' ? HE_LIST : [heatHeFilter];
+  let sum = 0;
+  heList.forEach(he => {
+    if (heatStatType === 'vu' || heatStatType === 'combined') sum += countTongSoVu(kp, he);
+    if (heatStatType === 'dt' || heatStatType === 'combined') sum += countTongDoiTuong(kp, he);
+  });
+  return sum;
+}
+function recomputeHeatCache() {
+  if (!heatEnabled) { heatCache = null; return; }
+  const values = {};
+  let max = 0;
+  for (let kp = 1; kp <= 32; kp++) {
+    const v = heatValue(kp);
+    values[kp] = v;
+    if (v > max) max = v;
+  }
+  heatCache = { key: heatStatType + '|' + heatHeFilter, values, max };
+}
+function dotFillColor(kp) {
+  if (!heatEnabled) return hasData(kp) ? markerStyle.colorFilled : markerStyle.colorEmpty;
+  if (!heatCache || heatCache.key !== heatStatType + '|' + heatHeFilter) recomputeHeatCache();
+  const v = heatCache.values[kp] || 0;
+  const max = heatCache.max || 0;
+  if (max <= 0 || v <= 0) return '#94a3b8'; // xám: không có dữ liệu
+  const ratio = v / max;
+  if (ratio >= 0.66) return '#dc2626'; // đỏ: cao
+  if (ratio >= 0.33) return '#f59e0b'; // vàng: trung bình
+  return '#16a34a'; // xanh: thấp
+}
+function setHeatEnabled(v) { heatEnabled = v; recomputeHeatCache(); if (!adjustMode) refreshDots(); updateHeatUI(); }
+function setHeatStatType(v) { heatStatType = v; recomputeHeatCache(); if (!adjustMode) refreshDots(); }
+function setHeatHeFilter(v) { heatHeFilter = v; recomputeHeatCache(); if (!adjustMode) refreshDots(); }
+function updateHeatUI() {
+  document.getElementById('heatEnable').checked = heatEnabled;
+  document.getElementById('heatStatSelect').disabled = !heatEnabled;
+  document.getElementById('heatHeSelect').disabled = !heatEnabled;
+}
 function showViewMode() {
   document.getElementById('viewMode').style.display = 'block';
   document.getElementById('editMode').style.display = 'none';
@@ -1571,12 +2565,7 @@ function startEdit() {
   document.getElementById('f_pctp_mt_phone').value = d.pctp_mt_phone || '';
   document.getElementById('f_pctp_ktmt_name').value = d.pctp_ktmt_name || '';
   document.getElementById('f_pctp_ktmt_phone').value = d.pctp_ktmt_phone || '';
-  document.getElementById('f_cstt_tt_name').value = d.cstt_tt_name || '';
-  document.getElementById('f_cstt_tt_phone').value = d.cstt_tt_phone || '';
-  document.getElementById('f_cstt_pc_name').value = d.cstt_pc_name || '';
-  document.getElementById('f_cstt_pc_phone').value = d.cstt_pc_phone || '';
-  document.getElementById('f_truong_name').value = d.truong_name || '';
-  document.getElementById('f_truong_phone').value = d.truong_phone || '';
+  renderStatsEdit(currentKP);
   document.getElementById('viewMode').style.display = 'none';
   document.getElementById('editMode').style.display = 'block';
 }
@@ -1597,12 +2586,9 @@ document.getElementById('editMode').addEventListener('submit', function(e) {
     pctp_mt_phone: document.getElementById('f_pctp_mt_phone').value.trim(),
     pctp_ktmt_name: document.getElementById('f_pctp_ktmt_name').value.trim(),
     pctp_ktmt_phone: document.getElementById('f_pctp_ktmt_phone').value.trim(),
-    cstt_tt_name: document.getElementById('f_cstt_tt_name').value.trim(),
-    cstt_tt_phone: document.getElementById('f_cstt_tt_phone').value.trim(),
-    cstt_pc_name: document.getElementById('f_cstt_pc_name').value.trim(),
-    cstt_pc_phone: document.getElementById('f_cstt_pc_phone').value.trim(),
-    truong_name: document.getElementById('f_truong_name').value.trim(),
-    truong_phone: document.getElementById('f_truong_phone').value.trim(),
+    stat_vu_hs: Number(document.getElementById('f_stat_vu_hs').value || 0),
+    stat_vu_ktmt: Number(document.getElementById('f_stat_vu_ktmt').value || 0),
+    stat_vu_mt: Number(document.getElementById('f_stat_vu_mt').value || 0),
   };
   saveAll(all);
   const newCaptruc = document.getElementById('f_captruc_phone').value.trim();
@@ -1630,18 +2616,19 @@ document.getElementById('listClose').addEventListener('click', closeList);
 
 function buildRow(kp) {
   const d = getEntry(kp);
+  const stats = {};
+  HE_LIST.forEach(he => { stats[he] = countTongDoiTuong(kp, he); });
   return {
     kp,
     name_new: displayNameNew(kp),
     name_old: displayNameOld(kp),
     streets: d.streets || '',
-    truong_name: d.truong_name || '', truong_phone: d.truong_phone || '',
     cskv_name: d.cskv_name || '', cskv_phone: d.cskv_phone || '',
     pctp_hs_name: d.pctp_hs_name || '', pctp_hs_phone: d.pctp_hs_phone || '',
     pctp_mt_name: d.pctp_mt_name || '', pctp_mt_phone: d.pctp_mt_phone || '',
     pctp_ktmt_name: d.pctp_ktmt_name || '', pctp_ktmt_phone: d.pctp_ktmt_phone || '',
-    cstt_tt_name: d.cstt_tt_name || '', cstt_tt_phone: d.cstt_tt_phone || '',
-    cstt_pc_name: d.cstt_pc_name || '', cstt_pc_phone: d.cstt_pc_phone || '',
+    stat_vu_hs: Number(d.stat_vu_hs || 0), stat_vu_ktmt: Number(d.stat_vu_ktmt || 0), stat_vu_mt: Number(d.stat_vu_mt || 0),
+    stat_tong_hs: stats.hs, stat_tong_ktmt: stats.ktmt, stat_tong_mt: stats.mt,
   };
 }
 function matchRow(row, q) {
@@ -1649,10 +2636,8 @@ function matchRow(row, q) {
   q = q.toLowerCase();
   const hay = [
     'khu pho ' + row.kp, row.name_new, row.name_old,
-    row.truong_name, row.truong_phone,
     row.cskv_name, row.cskv_phone,
     row.pctp_hs_name, row.pctp_hs_phone, row.pctp_mt_name, row.pctp_mt_phone, row.pctp_ktmt_name, row.pctp_ktmt_phone,
-    row.cstt_tt_name, row.cstt_tt_phone, row.cstt_pc_name, row.cstt_pc_phone
   ].join(' ').toLowerCase();
   return hay.includes(q);
 }
@@ -1673,8 +2658,7 @@ function renderTable(q) {
       <td data-label="Khu phố" class="kpcell"><b>${escapeHtml(row.name_new)}</b><span class="oldk">Cũ: ${escapeHtml(row.name_old || '—')}</span></td>
       <td data-label="CSKV">${personCell(row.cskv_name, row.cskv_phone)}</td>
       <td data-label="PCTP">${roleGroupCell([['HS', row.pctp_hs_name, row.pctp_hs_phone], ['MT', row.pctp_mt_name, row.pctp_mt_phone], ['KT-MT', row.pctp_ktmt_name, row.pctp_ktmt_phone]], '#c2610a')}</td>
-      <td data-label="CSTT">${roleGroupCell([['TT', row.cstt_tt_name, row.cstt_tt_phone], ['PC', row.cstt_pc_name, row.cstt_pc_phone]], '#5b21b6')}</td>
-      <td data-label="Trưởng KP">${personCell(row.truong_name, row.truong_phone)}</td>
+      <td data-label="Thống kê" class="statcell">HS: ${row.stat_tong_hs} &nbsp; KT-MT: ${row.stat_tong_ktmt} &nbsp; MT: ${row.stat_tong_mt}</td>
       <td data-label="" class="actioncell"><button class="rowbtn" data-view="${row.kp}">Xem</button></td>
     `;
     tbody.appendChild(tr);
@@ -1727,7 +2711,7 @@ async function exportRowsToExcel(rows, filename, titleText) {
       views: [{ state: 'frozen', ySplit: 3 }]
     });
 
-    const headers = ['Stt','Khu phố (mới)','Khu phố (cũ)','Tuyến đường','CSKV','SĐT CSKV','PCTP - Hình sự','SĐT (HS)','PCTP - Ma tuý','SĐT (MT)','PCTP - Kinh tế-MT','SĐT (KT-MT)','CSTT - Trật tự','SĐT (TT)','CSTT - PCCC','SĐT (PC)','Trưởng KP','SĐT Trưởng KP'];
+    const headers = ['Stt','Khu phố (mới)','Khu phố (cũ)','Tuyến đường','CSKV','SĐT CSKV','PCTP - Hình sự','SĐT (HS)','PCTP - Ma tuý','SĐT (MT)','PCTP - Kinh tế-MT','SĐT (KT-MT)','Tổng số vụ (HS)','Tổng ĐT (HS)','Tổng số vụ (KT-MT)','Tổng ĐT (KT-MT)','Tổng số vụ (MT)','Tổng ĐT (MT)'];
     ws.columns = [
       { key:'stt', width:6 }, { key:'kpnew', width:16 }, { key:'kpold', width:20 },
       { key:'streets', width:34 },
@@ -1735,9 +2719,9 @@ async function exportRowsToExcel(rows, filename, titleText) {
       { key:'pctp_hs', width:18 }, { key:'pctp_hs_p', width:13 },
       { key:'pctp_mt', width:18 }, { key:'pctp_mt_p', width:13 },
       { key:'pctp_ktmt', width:18 }, { key:'pctp_ktmt_p', width:13 },
-      { key:'cstt_tt', width:18 }, { key:'cstt_tt_p', width:13 },
-      { key:'cstt_pc', width:18 }, { key:'cstt_pc_p', width:13 },
-      { key:'truong', width:18 }, { key:'truong_p', width:13 },
+      { key:'vu_hs', width:14 }, { key:'tong_hs', width:14 },
+      { key:'vu_ktmt', width:14 }, { key:'tong_ktmt', width:14 },
+      { key:'vu_mt', width:14 }, { key:'tong_mt', width:14 },
     ];
 
     // Title row
@@ -1782,9 +2766,9 @@ async function exportRowsToExcel(rows, filename, titleText) {
         pctp_hs: r.pctp_hs_name, pctp_hs_p: r.pctp_hs_phone,
         pctp_mt: r.pctp_mt_name, pctp_mt_p: r.pctp_mt_phone,
         pctp_ktmt: r.pctp_ktmt_name, pctp_ktmt_p: r.pctp_ktmt_phone,
-        cstt_tt: r.cstt_tt_name, cstt_tt_p: r.cstt_tt_phone,
-        cstt_pc: r.cstt_pc_name, cstt_pc_p: r.cstt_pc_phone,
-        truong: r.truong_name, truong_p: r.truong_phone,
+        vu_hs: r.stat_vu_hs, tong_hs: r.stat_tong_hs,
+        vu_ktmt: r.stat_vu_ktmt, tong_ktmt: r.stat_tong_ktmt,
+        vu_mt: r.stat_vu_mt, tong_mt: r.stat_tong_mt,
       });
       const bandColor = (i % 2 === 0) ? 'FFFFFFFF' : 'FFF3F6FC';
       row.eachCell({ includeEmpty:true }, (cell, colNumber) => {
@@ -1907,7 +2891,11 @@ function showToast(msg) {
   let didPan = false;
 
   function apply() {
-    zoomEl.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+    // Thêm translateZ(0) để buộc trình duyệt đẩy lớp bản đồ (ảnh nền + chữ SVG) sang xử lý
+    // bằng GPU một cách ỔN ĐỊNH — trước đây thiếu hint này (và CSS hỗ trợ độ nét ở trên nhắm
+    // sai vào class ".map-zoom" trong khi phần tử thực dùng id "mapZoom") khiến trình duyệt
+    // lúc thì render sắc nét, lúc thì rơi về chế độ scale ảnh thô (mờ) một cách không nhất quán.
+    zoomEl.style.transform = `translate(${tx}px,${ty}px) scale(${scale}) translateZ(0)`;
   }
   function clamp() {
     const rect = outer.getBoundingClientRect();
@@ -2028,6 +3016,865 @@ refreshDots();
 sanitizePhoneInputs();
 applyCaptrucToDom(loadCaptruc());
 applyMarqueeToDom(loadMarquee());
+
+/* ================= TRANG ĐỐI TƯỢNG ================= */
+const subjectsOverlay = document.getElementById('subjectsOverlay');
+function subjectsOverlayIsOpen() { return subjectsOverlay.style.display !== 'none' && subjectsOverlay.style.display !== ''; }
+function openSubjectsOverlay() {
+  requireUnlock(() => {
+    populateKhuPhoSelect();
+    renderSubjectsPage();
+    subjectsOverlay.style.display = 'flex';
+  });
+}
+document.getElementById('btnSubjects').addEventListener('click', openSubjectsOverlay);
+document.getElementById('subjectsClose').addEventListener('click', () => { subjectsOverlay.style.display = 'none'; });
+document.getElementById('tabQL').addEventListener('click', () => switchSubjTab('ql'));
+document.getElementById('tabNew').addEventListener('click', () => switchSubjTab('new'));
+function switchSubjTab(tab) {
+  document.getElementById('tabQL').classList.toggle('active', tab === 'ql');
+  document.getElementById('tabNew').classList.toggle('active', tab === 'new');
+  document.getElementById('paneQL').classList.toggle('show', tab === 'ql');
+  document.getElementById('paneNew').classList.toggle('show', tab === 'new');
+  // Mặc định luôn ẩn form nhập, chỉ hiện danh sách — theo yêu cầu.
+  if (tab === 'new' && typeof showNewForm === 'function' && stagedSubjects.length === 0) showNewForm(false);
+}
+function populateKhuPhoSelect() {
+  ['nf_khupho', 'nf_khuphonoio'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    // Giữ lại option đầu tiên (option để trống "-- Ngoài địa bàn / chưa rõ --" đã có sẵn trong HTML),
+    // chỉ thêm 32 khu phố sau đó — không xoá sạch innerHTML như trước.
+    while (sel.options.length > 1) sel.remove(1);
+    for (let i = 1; i <= 32; i++) {
+      const opt = document.createElement('option');
+      opt.value = String(i);
+      opt.textContent = displayNameNew(i);
+      sel.appendChild(opt);
+    }
+  });
+}
+function renderSubjectsPage() { renderSubjQLTable(); renderSubjNewTable(); }
+
+/* ---- Tab: Danh sách đang quản lý ---- */
+function renderSubjQLTable() {
+  const q = normKey(document.getElementById('subjQLSearch').value);
+  const list = loadSubjQL();
+  const filtered = q ? list.filter(s => normKey(s.hoTen).includes(q) || String(s.cccd || '').includes(q) || normKey(displayNameNew(s.khuPho)).includes(q)) : list;
+  document.getElementById('subjQLCount').textContent = filtered.length + ' đối tượng (tổng ' + list.length + ')';
+  const tbody = document.getElementById('subjQLBody');
+  tbody.innerHTML = filtered.map((s, i) => `<tr>
+    <td class="nowrap">${i + 1}</td><td class="nowrap">${escapeHtml(s.hoTen)}</td><td class="nowrap">${escapeHtml(fmtNgay(s.ngaySinh))}</td><td class="nowrap">${escapeHtml(s.cccd || '')}</td>
+    <td>${escapeHtml(s.tamTru || '')}</td><td>${escapeHtml(s.dienQuanLy || '')}</td>
+    <td class="nowrap">${HE_LABEL[s.he] || s.he}</td><td class="nowrap">${escapeHtml(displayNameNew(s.khuPho))}</td>
+    <td class="actioncell"><button class="rowbtn edit" data-edit-ql="${s._id}">Sửa</button><button class="rowbtn danger" data-del-ql="${s._id}">Xoá</button></td>
+  </tr>`).join('') || `<tr><td colspan="9" class="empty-cell">Chưa có dữ liệu — hãy nhập từ Excel hoặc bấm "Thêm đối tượng mới"</td></tr>`;
+  tbody.querySelectorAll('[data-del-ql]').forEach(btn => {
+    btn.addEventListener('click', () => requireUnlock(() => {
+      if (!confirm('Xoá đối tượng này khỏi danh sách quản lý?')) return;
+      const id = btn.getAttribute('data-del-ql');
+      saveSubjQL(loadSubjQL().filter(s => s._id !== id));
+      recomputeSotLotAll();
+      renderSubjectsPage(); if (!adjustMode) refreshDots(); refreshStatsIfOpen();
+      showToast('✅ Đã xoá');
+    }));
+  });
+  tbody.querySelectorAll('[data-edit-ql]').forEach(btn => {
+    btn.addEventListener('click', () => requireUnlock(() => openQLEdit(btn.getAttribute('data-edit-ql'))));
+  });
+}
+document.getElementById('subjQLSearch').addEventListener('input', renderSubjQLTable);
+
+/* ---- Thêm mới / Sửa 1 đối tượng trong Danh sách đang quản lý (dùng chung 1 modal) ---- */
+let qlEditingId = null; // null khi đang ở chế độ THÊM MỚI, có giá trị khi đang SỬA
+function populateQLEditSelects() {
+  const khuPho = document.getElementById('qe_khupho');
+  khuPho.innerHTML = '';
+  for (let i = 1; i <= 32; i++) khuPho.appendChild(new Option(displayNameNew(i), String(i)));
+}
+function openQLEdit(id) {
+  const rec = loadSubjQL().find(s => s._id === id);
+  if (!rec) return;
+  populateQLEditSelects();
+  qlEditingId = id;
+  document.getElementById('qlEditTitle').textContent = '✏️ Sửa đối tượng (Danh sách đang quản lý)';
+  document.getElementById('qe_hoten').value = rec.hoTen || '';
+  document.getElementById('qe_ngaysinh').value = fmtNgay(rec.ngaySinh);
+  document.getElementById('qe_cccd').value = rec.cccd || '';
+  document.getElementById('qe_he').value = rec.he || 'hs';
+  document.getElementById('qe_tamtru').value = rec.tamTru || '';
+  document.getElementById('qe_dienquanly').value = rec.dienQuanLy || '';
+  document.getElementById('qe_khupho').value = String(rec.khuPho || 1);
+  document.getElementById('qlEditPop').classList.add('show');
+}
+function openQLAdd() {
+  populateQLEditSelects();
+  qlEditingId = null;
+  document.getElementById('qlEditTitle').textContent = '➕ Thêm đối tượng mới (Danh sách đang quản lý)';
+  ['qe_hoten', 'qe_ngaysinh', 'qe_cccd', 'qe_tamtru', 'qe_dienquanly'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('qe_he').value = 'hs';
+  document.getElementById('qe_khupho').value = '1';
+  document.getElementById('qlEditPop').classList.add('show');
+}
+document.getElementById('btnSubjQLAdd').addEventListener('click', () => requireUnlock(openQLAdd));
+function closeQLEdit() { document.getElementById('qlEditPop').classList.remove('show'); qlEditingId = null; }
+document.getElementById('qeCancel').addEventListener('click', closeQLEdit);
+document.getElementById('qlEditPop').addEventListener('click', e => { if (e.target.id === 'qlEditPop') closeQLEdit(); });
+document.getElementById('qeSave').addEventListener('click', () => {
+  const hoTen = document.getElementById('qe_hoten').value.trim();
+  if (!hoTen) { showToast('⚠️ Vui lòng nhập Họ và tên'); return; }
+  const fields = {
+    hoTen, ngaySinh: parseNgayInput(document.getElementById('qe_ngaysinh').value),
+    cccd: document.getElementById('qe_cccd').value.trim(),
+    he: document.getElementById('qe_he').value,
+    tamTru: document.getElementById('qe_tamtru').value.trim(),
+    dienQuanLy: document.getElementById('qe_dienquanly').value.trim(),
+    khuPho: parseInt(document.getElementById('qe_khupho').value, 10),
+  };
+  const list = loadSubjQL();
+  if (qlEditingId) {
+    saveSubjQL(list.map(s => s._id !== qlEditingId ? s : { ...s, ...fields }));
+    showToast('✅ Đã lưu thay đổi');
+  } else {
+    saveSubjQL([...list, { _id: 'ql_' + Date.now(), ...fields }]);
+    showToast('✅ Đã thêm đối tượng mới vào danh sách quản lý');
+  }
+  recomputeSotLotAll();   // danh sách quản lý đổi -> chấm lại Sót lọt
+  renderSubjectsPage(); if (!adjustMode) refreshDots(); refreshStatsIfOpen();
+  closeQLEdit();
+});
+
+/* ---- Sửa 1 dòng (1 đối tượng trong 1 vụ việc) trong "Nhập vụ việc mới" ---- */
+let newEditingId = null;
+function populateNewEditSelects() {
+  ['ne_khupho', 'ne_khuphonoio'].forEach(id => {
+    const sel = document.getElementById(id);
+    while (sel.options.length > 1) sel.remove(1);
+    for (let i = 1; i <= 32; i++) sel.appendChild(new Option(displayNameNew(i), String(i)));
+  });
+}
+function updateNeDedupNote() {
+  const hoTen = document.getElementById('ne_hoten').value.trim();
+  const ngaySinh = parseNgayInput(document.getElementById('ne_ngaysinh').value);
+  const cccd = document.getElementById('ne_cccd').value.trim();
+  const khuPhoNoiOVal = document.getElementById('ne_khuphonoio').value;
+  const khuPhoNoiO = khuPhoNoiOVal ? parseInt(khuPhoNoiOVal, 10) : null;
+  const note = document.getElementById('ne_dedup_note');
+  if (!hoTen) { note.textContent = ''; return; }
+  const match = timTrungDoiTuongQL(hoTen, khuPhoNoiO, ngaySinh, cccd);
+  note.textContent = match
+    ? '✓ Trùng với đối tượng đang quản lý (khu phố ' + displayNameNew(match.khuPho) + ') → KHÔNG tính là sót lọt'
+    : '⚠️ Không khớp với danh sách đang quản lý → tính là Sót lọt (nếu đơn vị bắt = CAP)';
+}
+['ne_hoten', 'ne_cccd'].forEach(id => document.getElementById(id).addEventListener('blur', updateNeDedupNote));
+document.getElementById('ne_ngaysinh').addEventListener('blur', updateNeDedupNote);
+document.getElementById('ne_khuphonoio').addEventListener('change', updateNeDedupNote);
+document.getElementById('ne_noixayra').addEventListener('blur', () => {
+  const kp = extractKhuPho(document.getElementById('ne_noixayra').value);
+  document.getElementById('ne_khupho').value = kp ? String(kp) : '';
+});
+document.getElementById('ne_noio').addEventListener('blur', () => {
+  const kp = extractKhuPho(document.getElementById('ne_noio').value);
+  document.getElementById('ne_khuphonoio').value = kp ? String(kp) : '';
+  updateNeDedupNote();
+});
+document.querySelectorAll('input[name="ne_donvi"]').forEach(r => r.addEventListener('change', () => {
+  document.getElementById('ne_donvibat').style.display = document.querySelector('input[name="ne_donvi"]:checked').value === 'khac' ? 'block' : 'none';
+}));
+function openNewRowEdit(id) {
+  const rec = loadSubjNew().find(s => s._id === id);
+  if (!rec) return;
+  populateNewEditSelects();
+  newEditingId = id;
+  document.getElementById('ne_tenvuviec').value = rec.tenVuViec || '';
+  document.getElementById('ne_ngayxayra').value = fmtNgay(rec.ngayXayRa);
+  document.getElementById('ne_noixayra').value = rec.noiXayRa || '';
+  document.getElementById('ne_khupho').value = rec.khuPho ? String(rec.khuPho) : '';
+  document.getElementById('ne_he').value = rec.he || 'hs';
+  document.getElementById('ne_hoten').value = rec.hoTen || '';
+  document.getElementById('ne_ngaysinh').value = fmtNgay(rec.ngaySinh);
+  document.getElementById('ne_cccd').value = rec.cccd || '';
+  document.getElementById('ne_noio').value = rec.noiO || '';
+  document.getElementById('ne_khuphonoio').value = rec.khuPhoNoiO ? String(rec.khuPhoNoiO) : '';
+  const isKhac = rec.xuLy === 'don_vi_khac';
+  document.querySelector('input[name="ne_donvi"][value="' + (isKhac ? 'khac' : 'cap') + '"]').checked = true;
+  document.getElementById('ne_donvibat').value = rec.donViBat || '';
+  document.getElementById('ne_donvibat').style.display = isKhac ? 'block' : 'none';
+  updateNeDedupNote();
+  document.getElementById('newEditPop').classList.add('show');
+}
+function closeNewEdit() { document.getElementById('newEditPop').classList.remove('show'); newEditingId = null; }
+document.getElementById('neCancel').addEventListener('click', closeNewEdit);
+document.getElementById('newEditPop').addEventListener('click', e => { if (e.target.id === 'newEditPop') closeNewEdit(); });
+document.getElementById('neSave').addEventListener('click', () => {
+  if (!newEditingId) return;
+  const hoTen = document.getElementById('ne_hoten').value.trim();
+  if (!hoTen) { showToast('⚠️ Vui lòng nhập Họ và tên'); return; }
+  const donVi = document.querySelector('input[name="ne_donvi"]:checked').value;
+  const donViBat = donVi === 'khac' ? document.getElementById('ne_donvibat').value.trim() : '';
+  if (donVi === 'khac' && !donViBat) { showToast('⚠️ Vui lòng nhập tên đơn vị bắt'); return; }
+  const ngaySinh = parseNgayInput(document.getElementById('ne_ngaysinh').value);
+  const cccd = document.getElementById('ne_cccd').value.trim();
+  const khuPhoNoiOVal = document.getElementById('ne_khuphonoio').value;
+  const khuPhoNoiO = khuPhoNoiOVal ? parseInt(khuPhoNoiOVal, 10) : null;
+  const khuPhoVal = document.getElementById('ne_khupho').value;
+  const khuPho = khuPhoVal ? parseInt(khuPhoVal, 10) : null;
+  const he = document.getElementById('ne_he').value;
+  const xuLy = donVi === 'khac' ? 'don_vi_khac' : (timTrungDoiTuongQL(hoTen, khuPhoNoiO, ngaySinh, cccd) ? 'phuong_bat' : 'sot_lot');
+  const list = loadSubjNew();
+  const old = list.find(s => s._id === newEditingId);
+  const updated = {
+    ...old,
+    tenVuViec: document.getElementById('ne_tenvuviec').value.trim(),
+    ngayXayRa: parseNgayInput(document.getElementById('ne_ngayxayra').value),
+    noiXayRa: document.getElementById('ne_noixayra').value.trim(),
+    khuPho, he, hoTen, ngaySinh, cccd,
+    noiO: document.getElementById('ne_noio').value.trim(),
+    khuPhoNoiO, xuLy, donViBat,
+  };
+  saveSubjNew(list.map(s => s._id === newEditingId ? updated : s));
+  // Tính lại Tổng số vụ cho cả khu phố/hệ CŨ lẫn MỚI (nếu người dùng đổi khu phố/hệ vụ việc khi sửa).
+  if (old && old.khuPho) recomputeTongSoVu(old.khuPho, old.he);
+  if (khuPho) recomputeTongSoVu(khuPho, he);
+  renderSubjectsPage(); if (!adjustMode) refreshDots(); refreshStatsIfOpen();
+  closeNewEdit();
+  showToast('✅ Đã lưu thay đổi');
+});
+
+
+
+const SUBJ_QL_COLUMNS = [
+  { header: 'STT', key: 'stt', width: 6 }, { header: 'Họ và tên', key: 'hoTen', width: 24 },
+  { header: 'Ngày sinh', key: 'ngaySinh', width: 14 }, { header: 'Số CCCD', key: 'cccd', width: 16 },
+  { header: 'Tạm trú', key: 'tamTru', width: 30 },
+  { header: 'Diện quản lý', key: 'dienQuanLy', width: 20 }, { header: 'Hệ', key: 'he', width: 16 }, { header: 'Khu phố nơi ở', key: 'khuPho', width: 16 },
+];
+
+document.getElementById('btnSubjQLImport').addEventListener('click', () => requireUnlock(() => document.getElementById('subjQLFile').click()));
+document.getElementById('subjQLFile').addEventListener('change', async function (e) {
+  const file = e.target.files[0];
+  if (!file) { return; }
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    const ws = wb.worksheets[0];
+    const heMap = { 'hinh su': 'hs', 'hs': 'hs', 'kinh te - moi truong': 'ktmt', 'kt-mt': 'ktmt', 'ktmt': 'ktmt', 'ma tuy': 'mt', 'mt': 'mt' };
+    const out = [];
+    let headerRow = -1;
+    ws.eachRow((row, rowNumber) => {
+      const c1 = normKey(row.getCell(1).value || '');
+      if (headerRow === -1) { if (c1 === 'stt' || c1.includes('ho')) headerRow = rowNumber; return; }
+      if (rowNumber <= headerRow) return;
+      const hoTen = String(row.getCell(2).value || '').trim();
+      if (!hoTen) return;
+      const nsRaw = row.getCell(3).value;
+      const ngaySinh = nsRaw instanceof Date ? nsRaw.toISOString().slice(0, 10) : parseNgayInput(String(nsRaw || '').trim());
+      const cccd = String(row.getCell(4).value || '').trim();
+      const tamTru = String(row.getCell(5).value || '').trim();
+      const dienQuanLy = String(row.getCell(6).value || '').trim();
+      const heRaw = normKey(row.getCell(7).value || '');
+      const he = heMap[heRaw] || (heRaw.includes('hinh') ? 'hs' : heRaw.includes('kinh') ? 'ktmt' : heRaw.includes('tuy') ? 'mt' : 'hs');
+      const khuPho = parseInt(String(row.getCell(8).value || '').replace(/[^0-9]/g, ''), 10) || null;
+      if (!khuPho) return;
+      out.push({ _id: 'ql_' + Date.now() + '_' + out.length, hoTen, ngaySinh, cccd, tamTru, dienQuanLy, he, khuPho });
+    });
+    if (!out.length) { showToast('⚠️ Không đọc được dữ liệu hợp lệ — kiểm tra lại đúng mẫu cột (tải file mẫu để đối chiếu).'); return; }
+    saveSubjQL(out);
+    // Danh sách quản lý vừa đổi -> phải chấm lại Sót lọt cho toàn bộ đối tượng mới bắt.
+    const dm = recomputeSotLotAll();
+    renderSubjectsPage(); if (!adjustMode) refreshDots(); refreshStatsIfOpen();
+    showToast('✅ Đã nhập ' + out.length + ' đối tượng vào danh sách quản lý' + (dm ? ' — đã cập nhật lại ' + dm + ' trạng thái sót lọt' : ''));
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Lỗi đọc file Excel: ' + err.message);
+  } finally { e.target.value = ''; }
+});
+
+document.getElementById('btnSubjQLTemplate').addEventListener('click', async () => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('DanhSach');
+  ws.columns = SUBJ_QL_COLUMNS;
+  ws.addRow({ stt: 1, hoTen: 'Nguyễn Văn A', ngaySinh: '01/01/1990', cccd: '079123456789', tamTru: '', dienQuanLy: 'Nghiện ma tuý', he: 'Ma tuý', khuPho: 1 });
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Mau_DanhSachDoiTuongQuanLy.xlsx'; a.click();
+});
+
+document.getElementById('btnSubjQLExport').addEventListener('click', async () => {
+  const list = loadSubjQL();
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('DanhSach');
+  ws.columns = SUBJ_QL_COLUMNS;
+  list.forEach((s, i) => ws.addRow({ stt: i + 1, hoTen: s.hoTen, ngaySinh: fmtNgay(s.ngaySinh), cccd: s.cccd, tamTru: s.tamTru, dienQuanLy: s.dienQuanLy, he: HE_LABEL[s.he] || s.he, khuPho: displayNameNew(s.khuPho) }));
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'DanhSachDoiTuongQuanLy_' + new Date().toISOString().slice(0, 10) + '.xlsx'; a.click();
+});
+
+/* ---- Excel cho "Nhập đối tượng mới": import hàng loạt / tải mẫu / xuất ---- */
+// Cột đúng theo các trường của form. "Đơn vị bắt": để trống hoặc ghi CAP/"Công an phường" -> phần
+// mềm tự đối chiếu danh sách quản lý để xác định Sót lọt/Phường bắt; ghi tên đơn vị khác (VD: "Công
+// an Quận 3") -> tính là Đơn vị khác bắt. Cột "Trạng thái" chỉ để xem, không đọc khi nhập vào.
+// Cột đúng theo thứ tự các trường mới của form. "Đơn vị bắt": để trống hoặc ghi CAP/"Công an phường"
+// -> phần mềm tự đối chiếu Họ tên + Khu phố nơi ở với danh sách quản lý; ghi tên đơn vị khác -> tính
+// là Đơn vị khác bắt. Cột "Trạng thái" chỉ để xem, không đọc khi nhập vào.
+// ===== Cấu trúc cột Excel mới: mỗi dòng = 1 vụ việc + 1 đối tượng trong vụ đó (dòng phẳng) =====
+const SUBJ_NEW_COLUMNS = [
+  { header: 'STT', key: 'stt', width: 6 },
+  { header: 'Tên vụ việc', key: 'tenVuViec', width: 26 },
+  { header: 'Ngày xảy ra vụ việc', key: 'ngayXayRa', width: 16 },
+  { header: 'Nơi xảy ra vụ việc', key: 'noiXayRa', width: 30 },
+  { header: 'Khu phố nơi xảy ra vụ việc (để trống nếu ngoài phường Tân Bình)', key: 'khuPho', width: 30 },
+  { header: 'Hệ', key: 'he', width: 16 },
+  { header: 'Họ và tên đối tượng', key: 'hoTen', width: 24 },
+  { header: 'Năm sinh', key: 'ngaySinh', width: 14 },
+  { header: 'Số CCCD', key: 'cccd', width: 16 },
+  { header: 'Nơi ở trước khi bị bắt', key: 'noiO', width: 34 },
+  { header: 'Khu phố ở (để trống nếu ngoài phường Tân Bình)', key: 'khuPhoNoiO', width: 26 },
+  { header: 'Đơn vị bắt (để trống/CAP = Công an phường; hoặc ghi tên đơn vị khác)', key: 'donViBat', width: 34 },
+  { header: 'Trạng thái (tự tính, chỉ để xem)', key: 'trangThai', width: 20 },
+];
+const XULY_LABEL_VN = { phuong_bat: 'Đã có trong quản lý', sot_lot: 'Sót lọt', don_vi_khac: 'Đơn vị khác bắt' };
+const CAP_KEYWORDS = new Set(['', 'cap', 'cong an phuong', 'phuong', 'congan phuong']);
+
+document.getElementById('btnSubjNewImport').addEventListener('click', () => requireUnlock(() => document.getElementById('subjNewFile').click()));
+/* ===== NHẬN DIỆN CỘT THEO TÊN TIÊU ĐỀ (không phụ thuộc thứ tự cột) =====
+   Trước đây phần mềm đọc cứng theo vị trí cột 1..13, nên chỉ cần file Excel thừa/thiếu/đảo 1 cột
+   là toàn bộ dữ liệu bị lệch (tên vụ việc nhảy sang cột họ tên, ngày sinh nhảy sang cột khu phố...).
+   Nay: dò dòng tiêu đề trong 15 dòng đầu, khớp theo TỪ KHOÁ trong tên cột -> đọc đúng cột dù ở đâu. */
+const COL_PATTERNS = [
+  { key: 'stt',        test: h => h === 'stt' || h.startsWith('stt ') || h === 'so tt' },
+  { key: 'tenVuViec',  test: h => h.includes('ten vu viec') || h === 'vu viec' || h.includes('hanh vi') || h.includes('toi danh') },
+  { key: 'ngayXayRa',  test: h => h.includes('ngay xay ra') || h.includes('thoi gian xay ra') || h.includes('ngay vu viec') },
+  { key: 'noiXayRa',   test: h => h.includes('noi xay ra') || h.includes('dia diem xay ra') || h.includes('dia chi xay ra') },
+  { key: 'khuPho',     test: h => (h.includes('khu pho') && (h.includes('xay ra') || h.includes('vu viec'))) },
+  { key: 'he',         test: h => h === 'he' || h.startsWith('he ') || h.includes('he (') || h.includes('linh vuc') || h.includes('loai an') },
+  { key: 'hoTen',      test: h => h.includes('ho va ten') || h.includes('ho ten') || h.includes('ten doi tuong') },
+  { key: 'ngaySinh',   test: h => h.includes('nam sinh') || h.includes('ngay sinh') || h.includes('sinh nam') },
+  { key: 'cccd',       test: h => h.includes('cccd') || h.includes('cmnd') || h.includes('can cuoc') || h.includes('dinh danh') },
+  { key: 'noiO',       test: h => h.includes('noi o') || h.includes('cho o') || h.includes('dia chi') || h.includes('thuong tru') || h.includes('tam tru') },
+  { key: 'khuPhoNoiO', test: h => h.includes('khu pho') && (h.includes(' o') || h.includes('noi o') || h.includes('cu tru')) },
+  { key: 'donViBat',   test: h => h.includes('don vi bat') || h.includes('don vi phat hien') || h === 'don vi' || h.includes('don vi xu ly') },
+  { key: 'trangThai',  test: h => h.includes('trang thai') || h.includes('sot lot') },
+];
+// Thứ tự cột MẶC ĐỊNH (dùng khi file không có dòng tiêu đề nhận diện được).
+const COL_FALLBACK = ['stt', 'tenVuViec', 'ngayXayRa', 'noiXayRa', 'khuPho', 'he', 'hoTen', 'ngaySinh', 'cccd', 'noiO', 'khuPhoNoiO', 'donViBat', 'trangThai'];
+
+// Trả về { map: {key:colIndex}, headerRow } hoặc null nếu không tìm thấy tiêu đề.
+function detectColumns(ws) {
+  const maxScan = Math.min(15, ws.rowCount);
+  for (let r = 1; r <= maxScan; r++) {
+    const row = ws.getRow(r);
+    const map = {};
+    let hit = 0;
+    for (let c = 1; c <= Math.max(ws.columnCount, 20); c++) {
+      const h = normKey(cellText(row.getCell(c))).replace(/[^a-z0-9]+/g, ' ').trim();
+      if (!h) continue;
+      for (const p of COL_PATTERNS) {
+        if (map[p.key] === undefined && p.test(h)) { map[p.key] = c; hit++; break; }
+      }
+    }
+    // Cần ít nhất 3 cột khớp và phải có 1 trong 2 cột xương sống thì mới coi là dòng tiêu đề.
+    if (hit >= 3 && (map.tenVuViec || map.hoTen)) return { map, headerRow: r };
+  }
+  return null;
+}
+// Đọc nội dung 1 ô của ExcelJS ra chuỗi sạch (xử lý cả ô công thức, richText, hyperlink, ngày).
+function cellText(cell) {
+  if (!cell) return '';
+  const v = cell.value;
+  if (v === null || v === undefined) return '';
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === 'object') {
+    if (Array.isArray(v.richText)) return v.richText.map(t => t.text).join('');
+    if (v.text !== undefined) return String(v.text);
+    if (v.result !== undefined) return String(v.result);
+    if (v.hyperlink !== undefined) return String(v.hyperlink);
+    return '';
+  }
+  return String(v);
+}
+// Ngày: chấp nhận Date của Excel, "23/07/2025", "8/9/2025", "2025-07-23", hoặc chỉ năm "1988".
+function parseNgay(cell) {
+  if (cell && cell.value instanceof Date) return cell.value.toISOString().slice(0, 10);
+  const t = cellText(cell).trim();
+  if (!t) return '';
+  const k = ngaySinhKey(t);
+  if (k) return k;
+  if (/^(?:18|19|20)\d{2}$/.test(t)) return t;   // chỉ có năm -> giữ nguyên năm
+  return t;
+}
+// Hệ: đọc từ cột "Hệ"; nếu cột này trống/không hiểu được thì SUY RA TỪ TÊN VỤ VIỆC.
+function parseHe(raw, tenVuViec) {
+  const h = normKey(raw);
+  if (h) {
+    if (h.includes('ma tuy') || h === 'mt') return 'mt';
+    if (h.includes('kinh te') || h.includes('moi truong') || h.includes('ktmt') || h.includes('kt mt') || h.includes('kt-mt')) return 'ktmt';
+    if (h.includes('hinh su') || h === 'hs') return 'hs';
+  }
+  const t = normKey(tenVuViec);
+  if (t.includes('ma tuy')) return 'mt';
+  if (t.includes('kinh te') || t.includes('moi truong') || t.includes('hang gia') || t.includes('buon lau') || t.includes('tron thue') || t.includes('o nhiem')) return 'ktmt';
+  return 'hs';
+}
+function parseKhuPhoCell(cell, fallbackText) {
+  const t = cellText(cell);
+  const n = parseInt(String(t).replace(/[^0-9]/g, ''), 10);
+  if (n >= 1 && n <= 32) return n;
+  return extractKhuPho(t) || extractKhuPho(fallbackText) || null;
+}
+
+document.getElementById('subjNewFile').addEventListener('change', async function (e) {
+  const file = e.target.files[0];
+  if (!file) { return; }
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    const out = [];
+    const touched = new Set();   // các cặp "kp|he" bị ảnh hưởng, để tính lại Tổng số vụ đúng nơi
+    const seenRow = new Set();   // chống trùng NGAY TRONG FILE (cùng vụ + cùng người)
+    const canhBao = [];
+    let stt = 0;
+
+    // ĐỌC TẤT CẢ CÁC TRANG TÍNH (sheet) trong file — trước đây chỉ đọc sheet đầu tiên nên
+    // dữ liệu ở sheet thứ 2 ("DS_DoiTuong_...") bị bỏ sót hoàn toàn.
+    wb.worksheets.forEach(ws => {
+      const det = detectColumns(ws);
+      const map = det ? det.map : {};
+      const headerRow = det ? det.headerRow : 1;
+      if (!det) { COL_FALLBACK.forEach((k, i) => { map[k] = i + 1; }); canhBao.push('Trang "' + ws.name + '": không thấy dòng tiêu đề, đã đọc theo thứ tự cột mặc định.'); }
+      const g = (row, key) => (map[key] ? row.getCell(map[key]) : null);
+
+      ws.eachRow((row, rowNumber) => {
+        if (rowNumber <= headerRow) return;
+        const tenVuViec = cellText(g(row, 'tenVuViec')).trim();
+        const noiXayRa = cellText(g(row, 'noiXayRa')).trim();
+        const hoTen = cellText(g(row, 'hoTen')).trim();
+        // Bỏ qua dòng trống hoàn toàn và dòng ghi chú (gộp ô, chỉ có chữ ở 1 cột)
+        if (!tenVuViec && !noiXayRa && !hoTen) return;
+        if (!hoTen && !noiXayRa && tenVuViec.length > 80) return;   // dòng chú thích dài
+
+        const ngayXayRa = parseNgay(g(row, 'ngayXayRa'));
+        const he = parseHe(cellText(g(row, 'he')), tenVuViec);
+        const khuPho = parseKhuPhoCell(g(row, 'khuPho'), noiXayRa);
+        const ngaySinh = parseNgay(g(row, 'ngaySinh'));
+        const cccd = onlyDigits(cellText(g(row, 'cccd')));
+        const noiO = cellText(g(row, 'noiO')).trim();
+        const khuPhoNoiO = parseKhuPhoCell(g(row, 'khuPhoNoiO'), noiO);
+        const donViRaw = cellText(g(row, 'donViBat')).trim();
+
+        const dedupKey = vuKey({ noiXayRa, tenVuViec }) + '#' + normNameKey(hoTen) + '#' + namSinhOf(ngaySinh);
+        if (seenRow.has(dedupKey)) return;   // đúng 1 dòng này đã có trong file -> bỏ qua bản sao
+        seenRow.add(dedupKey);
+
+        // "Đơn vị bắt": để trống hoặc có chữ CAP / công an phường / tổ ... CAP -> coi là CAP.
+        const dv = normKey(donViRaw);
+        const isCap = !dv || dv.includes('cap') || dv.includes('cong an phuong') || dv.startsWith('phuong');
+        let xuLy = '';
+        if (hoTen) xuLy = !isCap ? 'don_vi_khac' : (timTrungDoiTuongQL(hoTen, khuPhoNoiO, ngaySinh, cccd) ? 'phuong_bat' : 'sot_lot');
+        const donViBat = (hoTen && !isCap) ? donViRaw : '';
+
+        if (khuPho) touched.add(khuPho + '|' + he);
+        stt++;
+        out.push({
+          _id: 'new_' + Date.now() + '_' + stt, tenVuViec, ngayXayRa, noiXayRa, khuPho, he,
+          hoTen, ngaySinh, cccd, noiO, khuPhoNoiO, xuLy, donViBat, ts: new Date().toISOString(),
+        });
+      });
+    });
+
+    if (!out.length) { showToast('⚠️ Không đọc được dữ liệu hợp lệ — kiểm tra lại đúng mẫu cột (tải file mẫu để đối chiếu).'); return; }
+
+    // Hỏi rõ: GHI ĐÈ toàn bộ hay CỘNG THÊM. Trước đây luôn cộng thêm nên nhập lại file cùng
+    // nội dung sẽ bị nhân đôi số liệu.
+    const dangCo = loadSubjNew();
+    let ketQua = out;
+    if (dangCo.length > 0) {
+      const ghiDe = confirm('Đã có ' + dangCo.length + ' dòng trong danh sách.\n\n• Bấm OK  = THAY THẾ toàn bộ bằng ' + out.length + ' dòng trong file (khuyên dùng khi nhập lại bảng tổng hợp).\n• Bấm Cancel = CỘNG THÊM ' + out.length + ' dòng vào danh sách hiện có.');
+      ketQua = ghiDe ? out : dangCo.concat(out);
+    }
+    saveSubjNew(ketQua);
+    // Tính lại "Tổng số vụ" cho TẤT CẢ khu phố (vì có thể vừa ghi đè, số cũ phải giảm theo).
+    recomputeAllTongSoVuFromVuViec();
+    touched.forEach(key => { const [kp, he] = key.split('|'); recomputeTongSoVu(Number(kp), he); });
+    renderSubjectsPage(); if (!adjustMode) refreshDots(); refreshStatsIfOpen();
+    const tk = thongKeTheoHe(ketQua);
+    showToast('✅ Đã nhập ' + out.length + ' dòng → ' + tk.vu.total + ' vụ việc • ' + tk.dt.total + ' đối tượng (đã lọc trùng)');
+    if (canhBao.length) setTimeout(() => alert('Lưu ý khi đọc file:\n\n- ' + canhBao.join('\n- ')), 400);
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Lỗi đọc file Excel: ' + err.message);
+  } finally { e.target.value = ''; }
+});
+
+document.getElementById('btnSubjNewTemplate').addEventListener('click', async () => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('NhapVuViecMoi');
+  ws.columns = SUBJ_NEW_COLUMNS;
+  ws.addRow({ stt: 1, tenVuViec: 'Trộm cắp tài sản tại cửa hàng', ngayXayRa: '12/03/2024', noiXayRa: '20 Lý Thường Kiệt, Khu phố 7', khuPho: 7, he: 'Hình sự', hoTen: 'Trần Văn G', ngaySinh: '12/04/1993', cccd: '079123777888', noiO: '12 Bàu Cát, Khu phố 1, Phường Tân Bình, TP.HCM', khuPhoNoiO: 1, donViBat: '', trangThai: '(để trống = CAP, tự tính Sót lọt)' });
+  ws.addRow({ stt: 2, tenVuViec: 'Trộm cắp tài sản tại cửa hàng', ngayXayRa: '12/03/2024', noiXayRa: '20 Lý Thường Kiệt, Khu phố 7', khuPho: 7, he: 'Hình sự', hoTen: 'Nguyễn Thị H', ngaySinh: '20/09/1997', cccd: '079123999000', noiO: '5 Đường DEF, Khu phố 2, Phường Tân Bình, TP.HCM', khuPhoNoiO: 2, donViBat: 'Công an Quận 3', trangThai: 'Ví dụ đơn vị khác bắt' });
+  ws.addRow({ stt: 3, tenVuViec: 'Gây rối trật tự tại quận khác', ngayXayRa: '01/04/2024', noiXayRa: '10 đường ABC, Quận Bình Thạnh (ngoài phường Tân Bình)', khuPho: '', he: 'Hình sự', hoTen: 'Lê Văn K', ngaySinh: '01/01/1990', cccd: '', noiO: '30 Trường Chinh, Khu phố 9, Phường Tân Bình, TP.HCM', khuPhoNoiO: 9, donViBat: '', trangThai: 'Ví dụ: vụ việc NGOÀI phường -> để trống khu phố vụ việc, nhưng đối tượng vẫn tính vào Khu phố 9 vì ở đó' });
+  ws.addRow({ stt: 4, tenVuViec: 'Cướp giật tài sản', ngayXayRa: '02/05/2024', noiXayRa: '68 Bàu Cát 1, khu phố 29, phường Tân Bình', khuPho: 29, he: 'Hình sự', hoTen: '', ngaySinh: '', cccd: '', noiO: '', khuPhoNoiO: '', donViBat: 'CAP', trangThai: 'Ví dụ: đã xảy ra vụ nhưng CHƯA bắt được ai -> vẫn tính 1 vụ, 0 đối tượng' });
+  const noteRow = ws.addRow({ stt: '', tenVuViec: 'CÁCH ĐẾM: 1 vụ = 1 cặp (Nơi xảy ra + Tên vụ việc). Dòng 1-2 cùng địa chỉ & cùng tên vụ = 1 vụ / 2 đối tượng. Đối tượng lọc trùng theo Họ và tên. Phần mềm đọc TẤT CẢ các trang tính (sheet) và tự dò cột theo TÊN TIÊU ĐỀ nên không sợ lệch cột.' });
+  ws.mergeCells(noteRow.number, 1, noteRow.number, SUBJ_NEW_COLUMNS.length);
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Mau_NhapVuViecMoi.xlsx'; a.click();
+});
+
+document.getElementById('btnSubjNewExport').addEventListener('click', () => {
+  xuatExcelDanhSach(loadSubjNew(), 'DanhSachVuViec', 'TOÀN BỘ DANH SÁCH VỤ VIỆC & ĐỐI TƯỢNG');
+});
+
+document.getElementById('btnSubjQLClearAll').addEventListener('click', () => requireUnlock(() => {
+  if (!confirm('Xoá TOÀN BỘ danh sách đối tượng đang quản lý? Không thể hoàn tác.')) return;
+  saveSubjQL([]);
+  recomputeSotLotAll();
+  renderSubjectsPage(); if (!adjustMode) refreshDots(); refreshStatsIfOpen();
+  showToast('✅ Đã xoá toàn bộ danh sách');
+}));
+
+/* ---- Tab: Nhập vụ việc mới (1 vụ việc = nhiều đối tượng) ---- */
+document.getElementById('nf_noixayra').addEventListener('blur', () => {
+  const kp = extractKhuPho(document.getElementById('nf_noixayra').value);
+  document.getElementById('nf_khupho').value = kp ? String(kp) : '';
+});
+document.getElementById('nf_hoten').addEventListener('blur', updateDedupNote);
+document.getElementById('nf_ngaysinh').addEventListener('blur', updateDedupNote);
+document.getElementById('nf_cccd').addEventListener('blur', updateDedupNote);
+document.getElementById('nf_noio').addEventListener('blur', () => {
+  const kp = extractKhuPho(document.getElementById('nf_noio').value);
+  document.getElementById('nf_khuphonoio').value = kp ? String(kp) : '';
+  updateDedupNote();
+});
+document.getElementById('nf_khuphonoio').addEventListener('change', updateDedupNote);
+function updateDedupNote() {
+  const hoTen = document.getElementById('nf_hoten').value.trim();
+  const ngaySinh = parseNgayInput(document.getElementById('nf_ngaysinh').value);
+  const cccd = document.getElementById('nf_cccd').value.trim();
+  const khuPhoNoiOVal = document.getElementById('nf_khuphonoio').value;
+  const khuPhoNoiO = khuPhoNoiOVal ? parseInt(khuPhoNoiOVal, 10) : null;
+  const note = document.getElementById('nf_dedup_note');
+  if (!hoTen) { note.textContent = ''; note.classList.remove('matched'); return; }
+  const match = timTrungDoiTuongQL(hoTen, khuPhoNoiO, ngaySinh, cccd);
+  if (match) {
+    note.textContent = '✓ Trùng với đối tượng ĐANG QUẢN LÝ (' + escapeHtml(match.hoTen) + (match.ngaySinh ? ', ' + match.ngaySinh : '') + ', ' + displayNameNew(match.khuPho) + ', hệ ' + (HE_LABEL[match.he] || match.he) + ') → KHÔNG tính là sót lọt';
+    note.classList.add('matched');
+  } else {
+    note.textContent = '⚠️ Không khớp họ tên / năm sinh / CCCD với danh sách đang quản lý → tính là SÓT LỌT (khi đơn vị bắt = CAP)'
+      + (khuPhoNoiO ? '' : ' — lưu ý: chưa chọn "Khu phố ở" nên đối tượng này chưa được cộng vào khu phố nào.');
+    note.classList.remove('matched');
+  }
+}
+document.querySelectorAll('input[name="nf_donvi"]').forEach(r => r.addEventListener('change', () => {
+  document.getElementById('nf_donvibat').style.display = document.querySelector('input[name="nf_donvi"]:checked').value === 'khac' ? 'block' : 'none';
+}));
+
+// ---- Danh sách đối tượng ĐANG XÂY DỰNG cho vụ việc hiện tại (chưa lưu) ----
+let stagedSubjects = [];
+document.getElementById('btnAddSubjectToggle').addEventListener('click', () => {
+  clearSubjectEntryFields();
+  document.getElementById('subjectEntryBox').style.display = 'block';
+  const el = document.getElementById('nf_hoten'); if (el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+document.getElementById('btnCancelAddSubject').addEventListener('click', () => {
+  document.getElementById('subjectEntryBox').style.display = 'none';
+  clearSubjectEntryFields();
+});
+document.getElementById('btnConfirmAddSubject').addEventListener('click', () => {
+  const hoTen = document.getElementById('nf_hoten').value.trim();
+  if (!hoTen) { showToast('⚠️ Vui lòng nhập Họ và tên đối tượng'); return; }
+  const khuPhoNoiOVal = document.getElementById('nf_khuphonoio').value;
+  const khuPhoNoiO = khuPhoNoiOVal ? parseInt(khuPhoNoiOVal, 10) : null;
+  const ngaySinh = parseNgayInput(document.getElementById('nf_ngaysinh').value);
+  const cccd = document.getElementById('nf_cccd').value.trim();
+  const noiO = document.getElementById('nf_noio').value.trim();
+  const donVi = document.querySelector('input[name="nf_donvi"]:checked').value;
+  const donViBat = donVi === 'khac' ? document.getElementById('nf_donvibat').value.trim() : '';
+  if (donVi === 'khac' && !donViBat) { showToast('⚠️ Vui lòng nhập tên đơn vị bắt'); return; }
+  const xuLy = donVi === 'khac' ? 'don_vi_khac' : (timTrungDoiTuongQL(hoTen, khuPhoNoiO, ngaySinh, cccd) ? 'phuong_bat' : 'sot_lot');
+  stagedSubjects.push({ hoTen, ngaySinh, cccd, noiO, khuPhoNoiO, xuLy, donViBat });
+  renderStagedSubjTable();
+  document.getElementById('subjectEntryBox').style.display = 'none';
+  clearSubjectEntryFields();
+  showToast('✅ Đã thêm vào danh sách vụ việc (bấm "Lưu vụ việc" để hoàn tất)');
+});
+function clearSubjectEntryFields() {
+  ['nf_hoten', 'nf_ngaysinh', 'nf_cccd', 'nf_noio'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('nf_khuphonoio').value = '';
+  document.querySelector('input[name="nf_donvi"][value="cap"]').checked = true;
+  document.getElementById('nf_donvibat').value = '';
+  document.getElementById('nf_donvibat').style.display = 'none';
+  document.getElementById('nf_dedup_note').textContent = '';
+  document.getElementById('nf_dedup_note').classList.remove('matched');
+}
+function renderStagedSubjTable() {
+  const tbody = document.getElementById('stagedSubjBody');
+  tbody.innerHTML = stagedSubjects.map((s, i) => `<tr>
+    <td>${escapeHtml(s.hoTen)}</td><td>${escapeHtml(fmtNgay(s.ngaySinh))}</td><td>${escapeHtml(s.cccd || '')}</td>
+    <td>${s.khuPhoNoiO ? escapeHtml(displayNameNew(s.khuPhoNoiO)) : '(ngoài địa bàn)'}</td>
+    <td>${s.xuLy === 'don_vi_khac' ? escapeHtml(s.donViBat || '') : 'CAP'}</td>
+    <td><button type="button" class="rowbtn danger" data-del-staged="${i}">Xoá</button></td>
+  </tr>`).join('') || `<tr><td colspan="6" class="empty-cell">Chưa thêm đối tượng nào — bấm "➕ Thêm đối tượng" bên dưới</td></tr>`;
+  tbody.querySelectorAll('[data-del-staged]').forEach(btn => {
+    btn.addEventListener('click', () => { stagedSubjects.splice(Number(btn.getAttribute('data-del-staged')), 1); renderStagedSubjTable(); });
+  });
+  document.getElementById('nf_socbat').value = String(stagedSubjects.length);
+}
+renderStagedSubjTable();
+
+// ---- Lưu vụ việc: chốt toàn bộ đối tượng đã thêm thành các dòng phẳng chung 1 vụ việc ----
+document.getElementById('btnSubjNewSave').addEventListener('click', () => requireUnlock(() => {
+  const tenVV = document.getElementById('nf_tenvuviec').value.trim();
+  const noiVV = document.getElementById('nf_noixayra').value.trim();
+  if (!tenVV && !noiVV) { showToast('⚠️ Vui lòng nhập ít nhất "Tên vụ việc" hoặc "Nơi xảy ra vụ việc"'); return; }
+  // Cho phép lưu vụ việc CHƯA CÓ đối tượng nào (vụ đã xảy ra nhưng chưa bắt được ai) —
+  // vụ đó vẫn được tính vào Tổng số vụ của khu phố, chỉ là không cộng đối tượng.
+  if (stagedSubjects.length === 0 && !confirm('Vụ việc này chưa có đối tượng nào. Vẫn lưu (chỉ ghi nhận vụ việc)?')) return;
+  const khuPhoVal = document.getElementById('nf_khupho').value;
+  const khuPho = khuPhoVal ? parseInt(khuPhoVal, 10) : null;
+  const he = document.getElementById('nf_he').value;
+  const caseFields = {
+    tenVuViec: document.getElementById('nf_tenvuviec').value.trim(),
+    ngayXayRa: parseNgayInput(document.getElementById('nf_ngayxayra').value),
+    noiXayRa: document.getElementById('nf_noixayra').value.trim(),
+    khuPho, he,
+  };
+  const nguon = stagedSubjects.length ? stagedSubjects
+    : [{ hoTen: '', ngaySinh: '', cccd: '', noiO: '', khuPhoNoiO: null, xuLy: '', donViBat: '' }];
+  const newRecords = nguon.map((s, i) => ({
+    _id: 'new_' + Date.now() + '_' + i, ...caseFields, ...s, ts: new Date().toISOString(),
+  }));
+  saveSubjNew([...loadSubjNew(), ...newRecords]);
+  // Chỉ tính "Tổng số vụ" nếu vụ việc thuộc 1 khu phố cụ thể của phường Tân Bình; nếu để trống
+  // (ngoài địa bàn) thì KHÔNG cộng vào khu phố nào — đúng yêu cầu. Số đối tượng luôn tính đúng theo
+  // khu phố nơi ở riêng của từng người (countSotLot/countDonViKhac tính trực tiếp, không cần gọi thêm).
+  if (khuPho) recomputeTongSoVu(khuPho, he);
+  renderSubjectsPage(); if (!adjustMode) refreshDots(); refreshStatsIfOpen();
+  showToast('✅ Đã lưu vụ việc' + (stagedSubjects.length ? ' với ' + stagedSubjects.length + ' đối tượng' : ' (chưa có đối tượng)'));
+  clearSubjNewForm();
+  showNewForm(false);   // lưu xong thì thu form lại, trả màn hình cho danh sách
+}));
+document.getElementById('btnSubjNewClear').addEventListener('click', clearSubjNewForm);
+function clearSubjNewForm() {
+  ['nf_tenvuviec', 'nf_ngayxayra', 'nf_noixayra'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('nf_khupho').value = '';
+  document.getElementById('nf_he').value = 'hs';
+  stagedSubjects = [];
+  renderStagedSubjTable();
+  clearSubjectEntryFields();
+  document.getElementById('subjectEntryBox').style.display = 'none';
+}
+
+const SUBJ_NEW_PAGE_SIZE = 25; // số VỤ VIỆC mỗi trang (mỗi vụ có thể gồm nhiều đối tượng)
+let subjNewPage = 1;
+// Lấy danh sách đang hiển thị sau khi áp dụng ô tìm kiếm + 3 bộ lọc (dùng chung cho bảng & xuất Excel).
+function getSubjNewFiltered() {
+  const q = normKey(document.getElementById('subjNewSearch').value);
+  const fTT = document.getElementById('subjNewFilterTrangThai').value;
+  const fHe = document.getElementById('subjNewFilterHe').value;
+  const fKpRaw = document.getElementById('subjNewFilterKp').value;
+  const fKp = fKpRaw ? parseInt(fKpRaw, 10) : null;
+  return loadSubjNew().filter(s => {
+    if (q) {
+      const hit = normKey(s.hoTen).includes(q) || normKey(s.tenVuViec || '').includes(q)
+        || normKey(s.noiXayRa || '').includes(q) || normKey(s.noiO || '').includes(q)
+        || String(s.cccd || '').includes(q)
+        || normKey(displayNameNew(s.khuPho)).includes(q) || normKey(displayNameNew(s.khuPhoNoiO)).includes(q);
+      if (!hit) return false;
+    }
+    if (fHe && s.he !== fHe) return false;
+    if (fKp && s.khuPhoNoiO !== fKp) return false;
+    if (fTT === '_novu') { if (s.hoTen) return false; }
+    else if (fTT) { if (s.xuLy !== fTT) return false; }
+    return true;
+  });
+}
+function trangThaiBadge(s) {
+  if (!s.hoTen) return '<span class="badge-none">Chưa có đối tượng</span>';
+  if (s.xuLy === 'sot_lot') return '<span class="badge-sl">⚠️ Sót lọt</span>';
+  if (s.xuLy === 'phuong_bat') return '<span class="badge-ok">Đã có trong QL</span>';
+  if (s.xuLy === 'don_vi_khac') return '<span class="badge-dvk">Đơn vị khác bắt</span>';
+  return '<span class="badge-none">—</span>';
+}
+function renderSubjNewTable() {
+  const list = loadSubjNew();
+  const filtered = getSubjNewFiltered();
+  // Số liệu hiển thị ĐÃ LỌC TRÙNG: vụ việc theo "Nơi xảy ra + Tên vụ việc", đối tượng theo "Họ và tên".
+  const tk = thongKeTheoHe(filtered);
+  const soSotLot = demDoiTuong(filtered.filter(s => s.xuLy === 'sot_lot'));
+  document.getElementById('subjNewSummary').innerHTML =
+    '<b>' + tk.vu.total + '</b> vụ việc  •  <b>' + tk.dt.total + '</b> đối tượng'
+    + '<span class="sm-he">(Hình sự: ' + tk.vu.hs + ' vụ / ' + tk.dt.hs + ' đt'
+    + ' &nbsp;|&nbsp; Ma tuý: ' + tk.vu.mt + ' vụ / ' + tk.dt.mt + ' đt'
+    + ' &nbsp;|&nbsp; Kinh tế-MT: ' + tk.vu.ktmt + ' vụ / ' + tk.dt.ktmt + ' đt)</span>'
+    + (soSotLot ? '<span class="sm-he sm-warn">⚠️ Sót lọt: ' + soSotLot + ' đối tượng</span>' : '');
+  document.getElementById('subjNewCount').textContent = filtered.length + ' dòng (tổng ' + list.length + ')';
+
+  // ===== GOM NHÓM THEO VỤ VIỆC =====
+  // Nhiều đối tượng cùng 1 vụ (cùng "Nơi xảy ra + Tên vụ việc") được gộp thành 1 nhóm; các cột
+  // STT / Tên vụ việc / Ngày xảy ra / Nơi xảy ra / Khu phố xảy ra chỉ in MỘT LẦN (dùng rowspan).
+  const groupMap = new Map();
+  filtered.forEach(s => {
+    const k = vuKey(s) || ('_le_' + s._id);
+    if (!groupMap.has(k)) groupMap.set(k, []);
+    groupMap.get(k).push(s);
+  });
+  const groups = Array.from(groupMap.values()).reverse();   // vụ mới nhập lên trên
+
+  // Phân trang THEO VỤ VIỆC để không bao giờ cắt đôi 1 vụ giữa 2 trang.
+  const totalPages = Math.max(1, Math.ceil(groups.length / SUBJ_NEW_PAGE_SIZE));
+  if (subjNewPage > totalPages) subjNewPage = totalPages;
+  if (subjNewPage < 1) subjNewPage = 1;
+  const startIdx = (subjNewPage - 1) * SUBJ_NEW_PAGE_SIZE;
+  const pageGroups = groups.slice(startIdx, startIdx + SUBJ_NEW_PAGE_SIZE);
+
+  let html = '';
+  pageGroups.forEach((g, gi) => {
+    const sttVu = startIdx + gi + 1;
+    const v = g[0];                       // thông tin vụ việc lấy từ dòng đầu của nhóm
+    const n = g.length;
+    g.forEach((s, ri) => {
+      const rowCls = [ri === 0 ? 'vu-first' : '', !s.hoTen ? 'row-novu' : (s.xuLy === 'sot_lot' ? 'row-sotlot' : '')].filter(Boolean).join(' ');
+      html += '<tr class="' + rowCls + '">';
+      if (ri === 0) {
+        html += `<td class="vu-cell vu-stt nowrap" rowspan="${n}">${sttVu}</td>
+    <td class="vu-cell" rowspan="${n}">${escapeHtml(v.tenVuViec || '')}</td>
+    <td class="vu-cell nowrap" rowspan="${n}">${escapeHtml(fmtNgay(v.ngayXayRa))}</td>
+    <td class="vu-cell" rowspan="${n}">${escapeHtml(v.noiXayRa || '')}</td>
+    <td class="vu-cell nowrap" rowspan="${n}">${v.khuPho ? escapeHtml(displayNameNew(v.khuPho)) : '<em>(ngoài địa bàn)</em>'}</td>`;
+      }
+      html += `<td class="nowrap">${s.hoTen ? escapeHtml(s.hoTen) : '<em>(chưa có đối tượng)</em>'}</td>
+    <td class="nowrap">${escapeHtml(fmtNgay(s.ngaySinh))}</td>
+    <td class="nowrap">${escapeHtml(s.cccd || '')}</td>
+    <td>${escapeHtml(s.noiO || '')}</td>
+    <td class="nowrap">${s.khuPhoNoiO ? escapeHtml(displayNameNew(s.khuPhoNoiO)) : '<em>(ngoài địa bàn)</em>'}</td>
+    <td class="nowrap">${HE_LABEL[s.he] || s.he}</td>
+    <td class="nowrap">${s.xuLy === 'don_vi_khac' ? escapeHtml(s.donViBat || '') : (s.hoTen ? 'CAP' : '')}</td>
+    <td class="nowrap">${trangThaiBadge(s)}</td>
+    <td class="actioncell"><button class="rowbtn edit" data-edit-new="${s._id}">Sửa</button><button class="rowbtn danger" data-del-new="${s._id}">Xoá</button></td>
+  </tr>`;
+    });
+  });
+  const tbody = document.getElementById('subjNewBody');
+  tbody.innerHTML = html || `<tr><td colspan="14" class="empty-cell">Không có dòng nào khớp bộ lọc hiện tại</td></tr>`;
+  tbody.querySelectorAll('[data-del-new]').forEach(btn => {
+    btn.addEventListener('click', () => requireUnlock(() => {
+      if (!confirm('Xoá dòng này (1 đối tượng trong 1 vụ việc)?')) return;
+      const id = btn.getAttribute('data-del-new');
+      const cur = loadSubjNew();
+      const removed = cur.find(s => s._id === id);
+      saveSubjNew(cur.filter(s => s._id !== id));
+      if (removed && removed.khuPho) recomputeTongSoVu(removed.khuPho, removed.he);
+      renderSubjectsPage(); if (!adjustMode) refreshDots(); refreshStatsIfOpen();
+      showToast('✅ Đã xoá (đã xoá luôn trên dữ liệu dùng chung)');
+    }));
+  });
+  tbody.querySelectorAll('[data-edit-new]').forEach(btn => {
+    btn.addEventListener('click', () => requireUnlock(() => openNewRowEdit(btn.getAttribute('data-edit-new'))));
+  });
+  renderSubjNewPagi(totalPages);
+}
+function renderSubjNewPagi(totalPages) {
+  const bar = document.getElementById('subjNewPagi');
+  if (totalPages <= 1) { bar.innerHTML = ''; return; }
+  let html = `<button ${subjNewPage <= 1 ? 'disabled' : ''} data-pg="prev">‹ Trước</button>`;
+  for (let p = 1; p <= totalPages; p++) {
+    html += `<button class="${p === subjNewPage ? 'active' : ''}" data-pg="${p}">${p}</button>`;
+  }
+  html += `<button ${subjNewPage >= totalPages ? 'disabled' : ''} data-pg="next">Sau ›</button>`;
+  bar.innerHTML = html;
+  bar.querySelectorAll('[data-pg]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = btn.getAttribute('data-pg');
+      if (v === 'prev') subjNewPage--;
+      else if (v === 'next') subjNewPage++;
+      else subjNewPage = Number(v);
+      renderSubjNewTable();
+    });
+  });
+}
+document.getElementById('subjNewSearch').addEventListener('input', () => { subjNewPage = 1; renderSubjNewTable(); });
+['subjNewFilterTrangThai', 'subjNewFilterHe', 'subjNewFilterKp'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => { subjNewPage = 1; renderSubjNewTable(); });
+});
+// Đổ 32 khu phố vào ô lọc "Khu phố ở"
+(function fillKpFilter() {
+  const sel = document.getElementById('subjNewFilterKp');
+  for (let i = 1; i <= 32; i++) { const o = document.createElement('option'); o.value = String(i); o.textContent = displayNameNew(i); sel.appendChild(o); }
+})();
+
+/* ---- Ẩn/hiện form "Nhập vụ việc mới" (mặc định ẩn để danh sách bên dưới rộng hơn) ---- */
+function showNewForm(show) {
+  document.getElementById('newFormWrap').style.display = show ? 'block' : 'none';
+  document.getElementById('btnOpenNewForm').style.display = show ? 'none' : 'inline-flex';
+  if (show) {
+    const el = document.getElementById('nf_tenvuviec');
+    if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (el) el.focus();
+  }
+}
+document.getElementById('btnOpenNewForm').addEventListener('click', () => requireUnlock(() => showNewForm(true)));
+document.getElementById('btnCloseNewForm').addEventListener('click', () => {
+  if (stagedSubjects.length > 0 && !confirm('Form đang có ' + stagedSubjects.length + ' đối tượng chưa lưu. Đóng và bỏ luôn?')) return;
+  clearSubjNewForm();
+  showNewForm(false);
+});
+
+/* ---- Xuất Excel: danh sách SÓT LỌT / đúng phần đang lọc ---- */
+async function xuatExcelDanhSach(rows, tenFile, tieuDe) {
+  if (!rows.length) { showToast('⚠️ Không có dòng nào để xuất'); return; }
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('DanhSach');
+  ws.columns = SUBJ_NEW_COLUMNS;
+  rows.forEach((s, i) => ws.addRow({
+    stt: i + 1, tenVuViec: s.tenVuViec || '', ngayXayRa: fmtNgay(s.ngayXayRa), noiXayRa: s.noiXayRa || '',
+    khuPho: s.khuPho ? displayNameNew(s.khuPho) : '', he: HE_LABEL[s.he] || s.he,
+    hoTen: s.hoTen || '', ngaySinh: fmtNgay(s.ngaySinh), cccd: s.cccd || '',
+    noiO: s.noiO || '', khuPhoNoiO: s.khuPhoNoiO ? displayNameNew(s.khuPhoNoiO) : '',
+    donViBat: s.xuLy === 'don_vi_khac' ? (s.donViBat || '') : (s.hoTen ? 'CAP' : ''),
+    trangThai: s.hoTen ? (XULY_LABEL_VN[s.xuLy] || s.xuLy) : 'Chưa có đối tượng',
+  }));
+  ws.getRow(1).font = { bold: true };
+  const tk = thongKeTheoHe(rows);
+  ws.addRow({});
+  const r1 = ws.addRow({ stt: '', tenVuViec: tieuDe + ' — TỔNG HỢP (đã lọc trùng)' });
+  r1.font = { bold: true };
+  ws.addRow({ stt: '', tenVuViec: 'Tổng số vụ việc (lọc trùng theo Nơi xảy ra)', ngayXayRa: tk.vu.total });
+  ws.addRow({ stt: '', tenVuViec: '— Hình sự', ngayXayRa: tk.vu.hs });
+  ws.addRow({ stt: '', tenVuViec: '— Ma tuý', ngayXayRa: tk.vu.mt });
+  ws.addRow({ stt: '', tenVuViec: '— Kinh tế - Môi trường', ngayXayRa: tk.vu.ktmt });
+  ws.addRow({ stt: '', tenVuViec: 'Tổng số đối tượng (lọc trùng theo Họ và tên)', ngayXayRa: tk.dt.total });
+  ws.addRow({ stt: '', tenVuViec: '— Hình sự', ngayXayRa: tk.dt.hs });
+  ws.addRow({ stt: '', tenVuViec: '— Ma tuý', ngayXayRa: tk.dt.mt });
+  ws.addRow({ stt: '', tenVuViec: '— Kinh tế - Môi trường', ngayXayRa: tk.dt.ktmt });
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = tenFile + '_' + new Date().toISOString().slice(0, 10) + '.xlsx'; a.click();
+  showToast('✅ Đã xuất ' + rows.length + ' dòng');
+}
+document.getElementById('btnSubjNewExportSotLot').addEventListener('click', () => {
+  xuatExcelDanhSach(loadSubjNew().filter(s => s.hoTen && s.xuLy === 'sot_lot'), 'DanhSachSotLot', 'DANH SÁCH ĐỐI TƯỢNG SÓT LỌT');
+});
+document.getElementById('btnSubjNewExportView').addEventListener('click', () => {
+  xuatExcelDanhSach(getSubjNewFiltered(), 'DanhSachVuViec_DaLoc', 'DANH SÁCH ĐANG LỌC');
+});
+document.getElementById('btnSubjNewClearAll').addEventListener('click', () => requireUnlock(() => {
+  if (!confirm('Xoá TOÀN BỘ danh sách vụ việc / đối tượng mới bắt? Không thể hoàn tác.')) return;
+  saveSubjNew([]);
+  recomputeAllTongSoVuFromVuViec();
+  renderSubjectsPage(); if (!adjustMode) refreshDots(); refreshStatsIfOpen();
+  showToast('✅ Đã xoá toàn bộ');
+}));
+
+document.getElementById('heatEnable').addEventListener('change', (e) => setHeatEnabled(e.target.checked));
+document.getElementById('heatStatSelect').addEventListener('change', (e) => setHeatStatType(e.target.value));
+document.getElementById('heatHeSelect').addEventListener('change', (e) => setHeatHeFilter(e.target.value));
+updateHeatUI();
+
 initSync();
 </script>
 
